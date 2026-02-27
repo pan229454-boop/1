@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>管理后台 - MiniChat</title>
+  <link rel="stylesheet" href="/assets/css/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MiniChat 管理后台</div>
+    <div style="display:flex; gap:8px;">
+      <a href="/app.html" class="btn secondary">返回聊天</a>
+      <button class="btn danger" id="logoutBtn">退出</button>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top:18px;">
+    <section class="admin-grid">
+      <div class="card stat"><div class="muted">注册人数</div><h2 id="sUsers">0</h2></div>
+      <div class="card stat"><div class="muted">在线人数</div><h2 id="sOnline">0</h2></div>
+      <div class="card stat"><div class="muted">消息总数</div><h2 id="sMsgs">0</h2></div>
+      <div class="card stat"><div class="muted">群聊数量</div><h2 id="sGroups">0</h2></div>
+    </section>
+
+    <section class="card p16" style="margin-top:12px;">
+      <h3>系统设置</h3>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+        <div class="field"><label>邮箱验证开关(0/1)</label><input id="setEmailVerify"></div>
+        <div class="field"><label>每分钟IP限流</label><input id="setIpRate"></div>
+        <div class="field"><label>登录失败限制</label><input id="setFailLimit"></div>
+        <div class="field"><label>图片大小上限MB(0=不限)</label><input id="setImgMax"></div>
+        <div class="field"><label>WebSocket主机</label><input id="setWsHost" placeholder="例如 127.0.0.1"></div>
+        <div class="field"><label>WebSocket端口</label><input id="setWsPort" placeholder="默认 2346"></div>
+        <div class="field"><label>SMTP(JSON)</label><textarea id="setSmtp" rows="3" placeholder='{"host":"smtp.qq.com","port":465}'></textarea></div>
+        <div class="field"><label>IMAP(JSON)</label><textarea id="setImap" rows="3" placeholder='{"host":"imap.qq.com","port":993}'></textarea></div>
+        <div class="field"><label>POP3(JSON)</label><textarea id="setPop3" rows="3" placeholder='{"host":"pop.qq.com","port":995}'></textarea></div>
+        <div class="field"><label>短信配置(JSON)</label><textarea id="setSms" rows="3" placeholder='{"provider":"aliyun"}'></textarea></div>
+        <div class="field"><label>验证码开关(0/1)</label><input id="setCaptcha"></div>
+        <div class="field"><label>reCAPTCHA SiteKey</label><input id="setSiteKey"></div>
+      </div>
+      <button class="btn" id="saveSettings">保存设置</button>
+    </section>
+
+    <section class="card p16" style="margin-top:12px;">
+      <h3>自定义 CSS 上传</h3>
+      <p class="muted">用于登录页、聊天页背景或主题样式覆盖。</p>
+      <input type="file" id="cssFile" accept=".css,text/css">
+      <button class="btn" id="uploadCss">上传并应用</button>
+    </section>
+
+    <section class="card p16" style="margin-top:12px;">
+      <h3>用户管理</h3>
+      <table class="table" id="userTable">
+        <thead><tr><th>ID</th><th>昵称</th><th>邮箱</th><th>状态</th><th>管理员</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="card p16" style="margin-top:12px;">
+      <h3>群管理</h3>
+      <table class="table" id="chatTable">
+        <thead><tr><th>群ID</th><th>名称</th><th>类型</th><th>公告</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="card p16" style="margin-top:12px;">
+      <h3>TXT 管理</h3>
+      <div style="display:flex; gap:8px;">
+        <input id="txtKeyword" placeholder="输入关键词搜索聊天记录" style="flex:1" />
+        <button class="btn" id="txtSearch">搜索</button>
+        <button class="btn ghost" id="txtArchive">归档30天前日志</button>
+      </div>
+      <pre id="txtResult" style="white-space:pre-wrap; background:#f6f8fb; padding:10px; border-radius:10px; margin-top:8px;"></pre>
+    </section>
+  </main>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    (async function () {
+      if (!ensureLogin()) return;
+
+      await loadAll();
+
+      document.getElementById('logoutBtn').onclick = async () => {
+        try { await api('auth/logout', { method: 'POST' }); } catch (_) {}
+        clearToken();
+        location.href = '/auth.html';
+      };
+
+      document.getElementById('saveSettings').onclick = async () => {
+        try {
+          const settings = {
+            email_verify_enabled: document.getElementById('setEmailVerify').value || '0',
+            ip_rate_limit_per_min: document.getElementById('setIpRate').value || '120',
+            login_fail_limit: document.getElementById('setFailLimit').value || '5',
+            upload_image_max_mb: document.getElementById('setImgMax').value || '0',
+            smtp_config: document.getElementById('setSmtp').value || '{}',
+            imap_config: document.getElementById('setImap').value || '{}',
+            pop3_config: document.getElementById('setPop3').value || '{}',
+            sms_config: document.getElementById('setSms').value || '{}',
+            captcha_enabled: document.getElementById('setCaptcha').value || '0',
+            recaptcha_site_key: document.getElementById('setSiteKey').value || '',
+          };
+          await api('admin/settings/set', { method: 'POST', body: { settings } });
+
+          const wsHost = document.getElementById('setWsHost').value.trim();
+          const wsPort = document.getElementById('setWsPort').value.trim();
+          if (wsHost) localStorage.setItem('mc_ws_host', wsHost);
+          if (wsPort) localStorage.setItem('mc_ws_port', wsPort);
+
+          toast('设置已保存');
+          await loadSettings();
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('uploadCss').onclick = async () => {
+        const f = document.getElementById('cssFile').files[0];
+        if (!f) return toast('请先选择CSS文件');
+        const form = new FormData();
+        form.append('css', f);
+        try {
+          const data = await api('admin/custom-css/upload', { method: 'POST', form });
+          toast(`上传成功：${data.path}`);
+          await loadSettings();
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('txtSearch').onclick = async () => {
+        const keyword = document.getElementById('txtKeyword').value.trim();
+        if (!keyword) return toast('请输入关键词');
+        try {
+          const data = await api(`admin/txt/search?keyword=${encodeURIComponent(keyword)}`);
+          document.getElementById('txtResult').textContent = JSON.stringify(data.items, null, 2);
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('txtArchive').onclick = async () => {
+        try {
+          const data = await api('admin/txt/archive', { method: 'POST', body: { keep_days: 30 } });
+          toast(`归档完成，处理文件数: ${data.archived_count}`);
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      async function loadAll() {
+        await Promise.all([loadStats(), loadSettings(), loadUsers(), loadChats()]);
+      }
+
+      async function loadStats() {
+        const data = await api('admin/stats');
+        document.getElementById('sUsers').textContent = data.users;
+        document.getElementById('sOnline').textContent = data.online;
+        document.getElementById('sMsgs').textContent = data.messages;
+        document.getElementById('sGroups').textContent = data.groups;
+      }
+
+      async function loadSettings() {
+        const data = await api('admin/settings/get');
+        const s = data.settings || {};
+        document.getElementById('setEmailVerify').value = s.email_verify_enabled || '0';
+        document.getElementById('setIpRate').value = s.ip_rate_limit_per_min || '120';
+        document.getElementById('setFailLimit').value = s.login_fail_limit || '5';
+        document.getElementById('setImgMax').value = s.upload_image_max_mb || '0';
+        document.getElementById('setSmtp').value = s.smtp_config || '{}';
+        document.getElementById('setImap').value = s.imap_config || '{}';
+        document.getElementById('setPop3').value = s.pop3_config || '{}';
+        document.getElementById('setSms').value = s.sms_config || '{}';
+        document.getElementById('setCaptcha').value = s.captcha_enabled || '0';
+        document.getElementById('setSiteKey').value = s.recaptcha_site_key || '';
+        document.getElementById('setWsHost').value = localStorage.getItem('mc_ws_host') || '';
+        document.getElementById('setWsPort').value = localStorage.getItem('mc_ws_port') || '2346';
+      }
+
+      async function loadUsers() {
+        const data = await api('admin/users/list');
+        const tbody = document.querySelector('#userTable tbody');
+        tbody.innerHTML = '';
+        data.items.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${String(u.user_no).padStart(5, '0')}</td>
+            <td>${u.nickname}</td>
+            <td>${u.email || '-'}</td>
+            <td>${u.status}</td>
+            <td>${u.is_admin}</td>
+            <td>
+              <button class="btn ghost" data-ban="${u.id}">封禁</button>
+              <button class="btn ghost" data-unban="${u.id}">启用</button>
+              <button class="btn ghost" data-reset="${u.id}">重置密码</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('[data-ban]').forEach(btn => btn.onclick = () => updateUser(Number(btn.dataset.ban), 3));
+        tbody.querySelectorAll('[data-unban]').forEach(btn => btn.onclick = () => updateUser(Number(btn.dataset.unban), 1));
+        tbody.querySelectorAll('[data-reset]').forEach(btn => btn.onclick = () => resetUserPwd(Number(btn.dataset.reset)));
+      }
+
+      async function updateUser(userId, status) {
+        try {
+          await api('admin/users/update', { method: 'POST', body: { user_id: userId, status } });
+          toast('已更新');
+          await loadUsers();
+        } catch (err) {
+          toast(err.message);
+        }
+      }
+
+      async function resetUserPwd(userId) {
+        const pwd = prompt('请输入新密码（至少6位）');
+        if (!pwd) return;
+        try {
+          await api('admin/users/reset-password', { method: 'POST', body: { user_id: userId, new_password: pwd } });
+          toast('密码已重置');
+        } catch (err) {
+          toast(err.message);
+        }
+      }
+
+      async function loadChats() {
+        const data = await api('admin/chats/list');
+        const tbody = document.querySelector('#chatTable tbody');
+        tbody.innerHTML = '';
+        data.items.forEach(c => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${c.chat_no}</td>
+            <td>${c.name}</td>
+            <td>${c.type}</td>
+            <td>${c.announcement || '-'}</td>
+            <td><button class="btn ghost" data-notice="${c.id}">更新公告</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        tbody.querySelectorAll('[data-notice]').forEach(btn => {
+          btn.onclick = async () => {
+            const text = prompt('请输入新公告');
+            if (text === null) return;
+            try {
+              await api('admin/chats/set-notice', {
+                method: 'POST',
+                body: { chat_id: Number(btn.dataset.notice), announcement: text }
+              });
+              toast('公告已更新');
+              await loadChats();
+            } catch (err) {
+              toast(err.message);
+            }
+          };
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>聊天详情 - MiniChat</title>
+  <link rel="stylesheet" href="/assets/css/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MiniChat 聊天详情</div>
+    <a href="/app.html" class="btn secondary">返回列表</a>
+  </header>
+
+  <div class="main" style="height:calc(100vh - 64px)">
+    <div class="chat-head">
+      <button class="btn ghost" onclick="location.href='/app.html'">←</button>
+      <div style="text-align:center;">
+        <div id="chatName">聊天</div>
+        <div class="muted" id="chatUnread"></div>
+      </div>
+      <button class="btn ghost" id="toggleDrawer">☰</button>
+    </div>
+
+    <div class="chat-body" id="chatBody"></div>
+
+    <div class="chat-input">
+      <div class="input-row">
+        <input type="file" id="imgFile" accept="image/*" style="display:none" />
+        <button id="imgBtn" class="btn ghost">图片</button>
+        <input id="msgInput" placeholder="输入消息，支持 @某人 或引用回复" />
+        <button id="quoteBtn" class="btn ghost">引用</button>
+        <button id="sendBtn" class="btn">发送</button>
+      </div>
+      <div class="muted" id="quoteTip" style="margin-top:8px; display:none"></div>
+    </div>
+  </div>
+
+  <aside id="drawer" class="drawer">
+    <div class="p16">
+      <h3>群成员</h3>
+      <div id="memberList"></div>
+    </div>
+  </aside>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    (async function () {
+      if (!ensureLogin()) return;
+
+      const me = getUser() || (await api('auth/me')).user;
+      const chatId = Number(localStorage.getItem('mc_current_chat_id') || 0);
+      if (!chatId) {
+        toast('缺少 chat_id，返回聊天列表');
+        return location.href = '/app.html';
+      }
+
+      let chats = [];
+      let currentChat = null;
+      let quoteMessageId = 0;
+
+      await loadChatMeta();
+      await loadMessages();
+      await loadMembers();
+      await api('chats/read', { method: 'POST', body: { chat_id: chatId } });
+
+      const ws = wsConnect({
+        onEvent: async (event) => {
+          if (Number(event.chat_id) !== chatId) return;
+          if (event.type === 'new_message' || event.type === 'message_recall' || event.type === 'message_delete') {
+            await loadMessages();
+          }
+        }
+      });
+
+      document.getElementById('toggleDrawer').onclick = () => {
+        document.getElementById('drawer').classList.toggle('open');
+      };
+
+      document.getElementById('sendBtn').onclick = async () => {
+        const content = document.getElementById('msgInput').value.trim();
+        if (!content) return;
+        try {
+          await api('chats/send', {
+            method: 'POST',
+            body: {
+              chat_id: chatId,
+              msg_type: 'text',
+              content,
+              quote_message_id: quoteMessageId || 0,
+            }
+          });
+          document.getElementById('msgInput').value = '';
+          clearQuote();
+          await loadMessages();
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('imgBtn').onclick = () => document.getElementById('imgFile').click();
+      document.getElementById('imgFile').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const form = new FormData();
+        form.append('image', file);
+        try {
+          const up = await api('upload/image', { method: 'POST', form });
+          await api('chats/send', {
+            method: 'POST',
+            body: {
+              chat_id: chatId,
+              msg_type: 'image',
+              image_url: up.url,
+              quote_message_id: quoteMessageId || 0,
+            }
+          });
+          clearQuote();
+          await loadMessages();
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('quoteBtn').onclick = () => {
+        toast('先点击某条消息上的“引用”按钮，再发送消息');
+      };
+
+      async function loadChatMeta() {
+        const list = await api('chats/list');
+        chats = list.items;
+        currentChat = chats.find(c => Number(c.id) === chatId);
+        if (!currentChat) {
+          toast('聊天不存在或无权限');
+          return location.href = '/app.html';
+        }
+        document.getElementById('chatName').textContent = currentChat.name;
+        document.getElementById('chatUnread').textContent = `未读: ${currentChat.unread_count || 0}`;
+      }
+
+      async function loadMessages() {
+        const data = await api(`chats/messages?chat_id=${chatId}`);
+        const body = document.getElementById('chatBody');
+        body.innerHTML = '';
+
+        data.items.forEach(m => {
+          const self = Number(m.sender_user_id) === Number(me.user_id);
+          const row = document.createElement('div');
+          row.className = `msg-row ${self ? 'self' : ''}`;
+
+          let contentHtml = '';
+          if (m.msg_type === 'image' && m.image_url) {
+            contentHtml = `<img class="msg-img" src="${m.image_url}" />`;
+          } else {
+            contentHtml = `<div>${escapeHtml(m.content || '')}</div>`;
+          }
+
+          row.innerHTML = `
+            ${self ? '' : `<img class="avatar" style="width:36px;height:36px;border-radius:10px" src="${m.sender_avatar || '/assets/default-avatar.png'}"/>`}
+            <div class="bubble">
+              <div class="msg-meta">${m.sender_nickname} · ${m.created_at}</div>
+              ${contentHtml}
+              <div style="margin-top:6px; display:flex; gap:6px;">
+                <button class="btn ghost" data-quote="${m.id}">引用</button>
+                <button class="btn ghost" data-recall="${m.id}">撤回</button>
+                <button class="btn ghost" data-del="${m.id}">删除</button>
+              </div>
+            </div>
+          `;
+
+          body.appendChild(row);
+        });
+
+        body.scrollTop = body.scrollHeight;
+
+        body.querySelectorAll('[data-quote]').forEach(el => {
+          el.onclick = () => {
+            quoteMessageId = Number(el.dataset.quote);
+            document.getElementById('quoteTip').style.display = 'block';
+            document.getElementById('quoteTip').textContent = `已引用消息 #${quoteMessageId}`;
+          };
+        });
+        body.querySelectorAll('[data-recall]').forEach(el => {
+          el.onclick = async () => {
+            try {
+              await api('chats/recall', { method: 'POST', body: { message_id: Number(el.dataset.recall) } });
+              await loadMessages();
+            } catch (err) {
+              toast(err.message);
+            }
+          };
+        });
+        body.querySelectorAll('[data-del]').forEach(el => {
+          el.onclick = async () => {
+            if (!confirm('确认删除此消息？')) return;
+            try {
+              await api('chats/delete-message', { method: 'POST', body: { message_id: Number(el.dataset.del) } });
+              await loadMessages();
+            } catch (err) {
+              toast(err.message);
+            }
+          };
+        });
+      }
+
+      async function loadMembers() {
+        if (!currentChat || currentChat.type !== 'group') return;
+        const data = await api(`groups/members?chat_id=${chatId}`);
+        const box = document.getElementById('memberList');
+        box.innerHTML = '';
+        data.items.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'chat-item';
+          div.innerHTML = `
+            <div style="display:flex; gap:8px; align-items:center;">
+              <img src="${item.avatar || '/assets/default-avatar.png'}" class="avatar" style="width:36px;height:36px;border-radius:10px" />
+              <div>
+                <div>${item.nickname} (${String(item.user_no).padStart(5, '0')})</div>
+                <div class="muted">${item.title || '成员'} / ${item.role}</div>
+              </div>
+            </div>
+            <button class="btn ghost" data-private="${item.user_id}">私聊</button>
+          `;
+          box.appendChild(div);
+        });
+
+        box.querySelectorAll('[data-private]').forEach(btn => {
+          btn.onclick = async () => {
+            const uid = Number(btn.dataset.private);
+            if (!uid || uid === Number(me.user_id)) return;
+            try {
+              const p = await api('private/open', { method: 'POST', body: { target_user_id: uid } });
+              localStorage.setItem('mc_current_chat_id', String(p.chat_id));
+              location.reload();
+            } catch (err) {
+              toast(err.message);
+            }
+          };
+        });
+      }
+
+      function clearQuote() {
+        quoteMessageId = 0;
+        document.getElementById('quoteTip').style.display = 'none';
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+    })();
+  </script>
+</body>
+</html>

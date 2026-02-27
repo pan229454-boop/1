@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>聊天列表 - MiniChat</title>
+  <link rel="stylesheet" href="/assets/css/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MiniChat 聊天列表</div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <span id="onlineInfo">应到: 0 / 实到: 0</span>
+      <a href="/admin.html" class="btn secondary">管理后台</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="profile-head">
+        <img id="avatar" class="avatar" src="/assets/default-avatar.png" />
+        <div>
+          <div id="nickname">-</div>
+          <div class="muted" id="userNo">ID: -</div>
+        </div>
+        <button id="logoutBtn" class="btn danger">退出</button>
+      </div>
+      <div class="p16" style="display:flex; gap:8px;">
+        <input type="file" id="avatarFile" accept="image/*" style="display:none" />
+        <button id="changeAvatar" class="btn ghost">更换头像</button>
+        <button id="createGroup" class="btn">新建群</button>
+      </div>
+      <div class="p16" style="display:flex; gap:8px; padding-top:0;">
+        <button id="deleteAccountBtn" class="btn ghost" style="width:100%;">注销账号(邮箱验证)</button>
+      </div>
+      <div id="chatList"></div>
+    </aside>
+
+    <main class="main" style="align-items:center; justify-content:center;">
+      <div class="card p24" style="max-width:680px; text-align:center;">
+        <h2>请选择左侧聊天进入详情</h2>
+        <p class="muted">综合聊天群(0001)固定存在，所有用户自动加入。</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    (async function () {
+      if (!ensureLogin()) return;
+
+      let me = getUser();
+      if (!me) {
+        const data = await api('auth/me');
+        me = data.user;
+        setUser(me);
+      }
+
+      renderProfile(me);
+
+      const meData = await api('auth/me');
+      document.getElementById('onlineInfo').textContent = `应到: ${meData.online.total} / 实到: ${meData.online.online}`;
+
+      await loadChats();
+
+      const ws = wsConnect({
+        onEvent: async (event) => {
+          if (event.type === 'new_message' || event.type === 'chat_read') {
+            await loadChats();
+          }
+        },
+        onOnline: async (online) => {
+          const info = await api('auth/me');
+          document.getElementById('onlineInfo').textContent = `应到: ${info.online.total} / 实到: ${online}`;
+        }
+      });
+
+      document.getElementById('logoutBtn').onclick = async () => {
+        if (!confirm('确认退出登录？')) return;
+        try {
+          await api('auth/logout', { method: 'POST' });
+        } catch (_) {}
+        clearToken();
+        ws.close();
+        location.href = '/auth.html';
+      };
+
+      document.getElementById('changeAvatar').onclick = () => {
+        document.getElementById('avatarFile').click();
+      };
+
+      document.getElementById('deleteAccountBtn').onclick = async () => {
+        if (!me.email) {
+          return toast('当前账号未绑定邮箱，无法注销');
+        }
+        if (!confirm('账号注销后聊天记录不可恢复，且一个月内无法使用同邮箱重新注册，是否继续？')) {
+          return;
+        }
+        try {
+          const codeRes = await api('auth/send-email-code', {
+            method: 'POST',
+            body: { email: me.email, scene: 'delete_account' }
+          });
+          const code = prompt(codeRes.debug_code ? `请输入验证码（调试码：${codeRes.debug_code}）` : '请输入邮箱收到的验证码');
+          if (!code) return;
+          await api('account/delete', { method: 'POST', body: { code } });
+          clearToken();
+          toast('账号已注销');
+          location.href = '/auth.html';
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('avatarFile').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const form = new FormData();
+        form.append('avatar', file);
+        try {
+          const data = await api('upload/avatar', { method: 'POST', form });
+          me.avatar = data.url;
+          setUser(me);
+          renderProfile(me);
+          toast('头像已更新');
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('createGroup').onclick = async () => {
+        const name = prompt('请输入群名称');
+        if (!name) return;
+        try {
+          const data = await api('groups/create', { method: 'POST', body: { name } });
+          localStorage.setItem('mc_current_chat_id', String(data.chat_id));
+          location.href = '/chat.html';
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      async function loadChats() {
+        const data = await api('chats/list');
+        const list = document.getElementById('chatList');
+        list.innerHTML = '';
+
+        data.items.forEach(chat => {
+          const div = document.createElement('div');
+          div.className = 'chat-item';
+          const title = chat.type === 'group' ? `群 ${chat.name} (${chat.chat_no})` : chat.name;
+          div.innerHTML = `
+            <div>
+              <div>${title}</div>
+              <div class="muted">${chat.last_content || '暂无消息'}</div>
+            </div>
+            <div>${Number(chat.unread_count) > 0 ? `<span class="badge">${Number(chat.unread_count) > 99 ? '99+' : chat.unread_count}</span>` : ''}</div>
+          `;
+          div.onclick = () => {
+            localStorage.setItem('mc_current_chat_id', String(chat.id));
+            location.href = '/chat.html';
+          };
+          list.appendChild(div);
+        });
+      }
+
+      function renderProfile(user) {
+        document.getElementById('avatar').src = user.avatar || '/assets/default-avatar.png';
+        document.getElementById('nickname').textContent = user.nickname || '-';
+        document.getElementById('userNo').textContent = `ID: ${String(user.user_no || '').padStart(5, '0')}`;
+      }
+    })();
+  </script>
+</body>
+</html>

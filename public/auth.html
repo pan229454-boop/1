@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 / 注册 - MiniChat</title>
+  <link rel="stylesheet" href="/assets/css/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MiniChat</div>
+    <a class="btn secondary" href="/">返回首页</a>
+  </header>
+
+  <main class="auth-wrap card p24">
+    <div class="tabs">
+      <div class="tab active" data-tab="login">登录</div>
+      <div class="tab" data-tab="register">注册</div>
+      <div class="tab" data-tab="forgot">忘记密码</div>
+    </div>
+
+    <form id="loginForm" class="panel">
+      <div class="field"><label>账号（邮箱/昵称/ID）</label><input name="account" required></div>
+      <div class="field"><label>密码</label><input type="password" name="password" required></div>
+      <button class="btn" type="submit">登录</button>
+    </form>
+
+    <form id="registerForm" class="panel" style="display:none">
+      <div class="field"><label>昵称</label><input name="nickname" required></div>
+      <div class="field"><label>邮箱（可选）</label><input name="email" type="email"></div>
+      <div class="field"><label>密码</label><input type="password" name="password" required></div>
+      <div class="field"><label>邮箱验证码（若后台开启邮箱验证）</label><input name="code"></div>
+      <div style="display:flex; gap:8px; margin-bottom:10px">
+        <button class="btn ghost" type="button" id="sendRegCode">发送验证码</button>
+        <button class="btn" type="submit">注册并登录</button>
+      </div>
+    </form>
+
+    <form id="forgotForm" class="panel" style="display:none">
+      <div class="field"><label>邮箱</label><input name="email" type="email" required></div>
+      <div class="field"><label>验证码</label><input name="code" required></div>
+      <div class="field"><label>新密码</label><input type="password" name="password" required></div>
+      <div style="display:flex; gap:8px">
+        <button class="btn ghost" type="button" id="sendResetCode">发送验证码</button>
+        <button class="btn" type="submit">重置密码</button>
+      </div>
+    </form>
+
+    <p class="muted">提示：登录状态有效时会自动跳转到聊天列表。</p>
+  </main>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    (function () {
+      if (getToken()) {
+        location.href = '/app.html';
+        return;
+      }
+
+      const tabs = Array.from(document.querySelectorAll('.tab'));
+      const panels = {
+        login: document.getElementById('loginForm'),
+        register: document.getElementById('registerForm'),
+        forgot: document.getElementById('forgotForm'),
+      };
+
+      tabs.forEach(tab => {
+        tab.onclick = () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          Object.keys(panels).forEach(k => {
+            panels[k].style.display = k === tab.dataset.tab ? 'block' : 'none';
+          });
+        };
+      });
+
+      document.getElementById('loginForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+          const data = await api('auth/login', {
+            method: 'POST',
+            body: {
+              account: fd.get('account'),
+              password: fd.get('password'),
+            }
+          });
+          setToken(data.token);
+          setUser(data.user);
+          location.href = '/app.html';
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('registerForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+          const data = await api('auth/register', {
+            method: 'POST',
+            body: {
+              nickname: fd.get('nickname'),
+              email: fd.get('email'),
+              password: fd.get('password'),
+              code: fd.get('code'),
+            }
+          });
+          setToken(data.token);
+          setUser(data.user);
+          location.href = '/app.html';
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('forgotForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+          await api('auth/reset-password', {
+            method: 'POST',
+            body: {
+              email: fd.get('email'),
+              code: fd.get('code'),
+              password: fd.get('password'),
+            }
+          });
+          toast('密码重置成功，请登录');
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('sendRegCode').onclick = async () => {
+        const email = document.querySelector('#registerForm [name=email]').value;
+        if (!email) return toast('请先输入邮箱');
+        try {
+          const data = await api('auth/send-email-code', {
+            method: 'POST',
+            body: { email, scene: 'register' }
+          });
+          toast(data.debug_code ? `验证码(调试): ${data.debug_code}` : '验证码已发送');
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+
+      document.getElementById('sendResetCode').onclick = async () => {
+        const email = document.querySelector('#forgotForm [name=email]').value;
+        if (!email) return toast('请先输入邮箱');
+        try {
+          const data = await api('auth/send-email-code', {
+            method: 'POST',
+            body: { email, scene: 'reset_password' }
+          });
+          toast(data.debug_code ? `验证码(调试): ${data.debug_code}` : '验证码已发送');
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+    })();
+  </script>
+</body>
+</html>

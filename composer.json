@@ -1,0 +1,20 @@
+{
+  "name": "pan229454-boop/chat-app",
+  "description": "QQ/微信风格 PHP + Workerman 聊天应用",
+  "type": "project",
+  "require": {
+    "php": ">=7.4",
+    "workerman/workerman": "^4.1"
+  },
+  "scripts": {
+    "install-db": "php scripts/install.php",
+    "ws:start": "php server/ws/server.php start -d",
+    "ws:stop": "php server/ws/server.php stop",
+    "ws:status": "php server/ws/server.php status"
+  },
+  "autoload": {
+    "psr-4": {
+      "ChatApp\\": "server/"
+    }
+  }
+}
