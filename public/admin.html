@@ -280,7 +280,7 @@ async function renderUsers(page = 1, search = '') {
 
 function userRow(u) {
   const roleLabel = { 1: '普通', 2: 'VIP', 3: '管理员', 9: '超管' }[u.role] ?? '普通';
-  const statusMap = { 0: ['ok','正常'], 1: ['frozen','已冻结'], 2: ['muted','已禁言'] };
+  const statusMap = { 0: ['frozen','已封禁'], 1: ['ok','正常'], 2: ['frozen','已冻结'] };
   const [cls, label] = statusMap[u.status] ?? ['ok','正常'];
   return `<tr>
     <td>${u.uid}</td>
@@ -290,10 +290,10 @@ function userRow(u) {
     <td><span class="status-badge ${cls}">${label}</span></td>
     <td>${formatTime(u.created_at)}</td>
     <td><div class="actions">
-      ${u.status === 0
+      ${u.status === 1
         ? `<button class="btn btn-sm" style="background:rgba(245,158,11,.1);color:#d97706" onclick="setUserStatus(${u.uid},2,'禁言')">禁言</button>
-           <button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#dc2626" onclick="setUserStatus(${u.uid},1,'冻结')">冻结</button>`
-        : `<button class="btn btn-sm" style="background:rgba(34,197,94,.1);color:#16a34a" onclick="setUserStatus(${u.uid},0,'解封')">解封</button>`}
+           <button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#dc2626" onclick="setUserStatus(${u.uid},0,'冻结')">冻结</button>`
+        : `<button class="btn btn-sm" style="background:rgba(34,197,94,.1);color:#16a34a" onclick="setUserStatus(${u.uid},1,'解封')">解封</button>`}
     </div></td>
   </tr>`;
 }
@@ -329,7 +329,7 @@ async function renderGroups(search = '') {
               <td>${escHtml(g.name)}</td>
               <td>${g.owner_uid}</td>
               <td>${g.member_count}</td>
-              <td><span class="status-badge ${g.status===0?'ok':'frozen'}">${g.status===0?'正常':'已解散'}</span></td>
+              <td><span class="status-badge ${g.status===1?'ok':'frozen'}">${g.status===1?'正常':'已解散'}</span></td>
               <td>${formatTime(g.created_at)}</td>
               <td><div class="actions">
                 <button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#dc2626" onclick="adminDissolveGroup('${escHtml(g.gid)}','${escHtml(g.name)}')">解散</button>
