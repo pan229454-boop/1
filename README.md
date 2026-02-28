@@ -307,6 +307,161 @@ chmod 640 /www/wwwroot/jiliao/.env
 
 ---
 
+## Git 自动部署（宝塔 + GitHub Webhook）
+
+代码推送到 GitHub 后，服务器自动拉取最新代码并重启 WebSocket，无需手动登录服务器。
+
+### 工作原理
+
+```
+git push → GitHub → 发送 Webhook POST → /webhook.php → 验证签名 → deploy.sh
+                                                                     ├─ git pull
+                                                                     ├─ composer install（按需）
+                                                                     ├─ 修正目录权限
+                                                                     └─ supervisorctl restart（按需）
+```
+
+### 第一步：服务器配置 SSH Key（让 www 用户能 git pull）
+
+```bash
+# 切换到 www 用户
+su -s /bin/bash www
+
+# 生成 SSH Key（一路回车）
+ssh-keygen -t ed25519 -C "deploy@yourdomain.com" -f ~/.ssh/id_ed25519
+
+# 查看公钥，复制全部输出内容
+cat ~/.ssh/id_ed25519.pub
+```
+
+然后将公钥添加到 GitHub：
+- 方式一（推荐）：仓库 → **Settings → Deploy keys → Add deploy key**，勾选 **Allow write access** 为 ❌（只读即可）
+- 方式二：账号级 → **Settings → SSH and GPG keys → New SSH key**
+
+验证连通性：
+
+```bash
+su -s /bin/bash www
+ssh -T git@github.com
+# 成功提示：Hi username! You've successfully authenticated...
+```
+
+### 第二步：修改仓库远端为 SSH 协议
+
+```bash
+cd /www/wwwroot/jiliao
+git remote set-url origin git@github.com:你的用户名/仓库名.git
+git remote -v   # 确认已改为 git@ 开头
+```
+
+### 第三步：在 .env 中配置 Webhook 密钥
+
+```bash
+# 生成随机密钥（复制输出结果）
+openssl rand -hex 32
+
+# 编辑 .env，添加一行
+WEBHOOK_SECRET=上面生成的随机字符串
+```
+
+### 第四步：赋予部署脚本执行权限
+
+```bash
+chmod +x /www/wwwroot/jiliao/scripts/deploy.sh
+```
+
+### 第五步：Nginx 放行 webhook.php
+
+宝塔站点默认屏蔽 `.php` 文件访问根目录外的脚本。确认 Nginx 的 `root` 指向 `public/`，则 `webhook.php` 在 `public/` 内，浏览器访问 `https://你的域名/webhook.php` 应返回 `405 Method not allowed`（GET 请求被正确拦截），说明配置正确。
+
+若返回 404，检查 Nginx 配置中 `index` 或 `try_files` 规则是否需要补充：
+
+```nginx
+location ~ \.php$ {
+    fastcgi_pass unix:/tmp/php-cgi-81.sock;
+    fastcgi_index index.php;
+    include fastcgi.conf;
+}
+```
+
+### 第六步：GitHub 配置 Webhook
+
+打开 GitHub 仓库 → **Settings → Webhooks → Add webhook**：
+
+| 字段 | 填写值 |
+|------|--------|
+| Payload URL | `https://你的域名/webhook.php` |
+| Content type | `application/json` |
+| Secret | 与 `.env` 中 `WEBHOOK_SECRET` 相同 |
+| Which events | **Just the push event** |
+| Active | ✅ 勾选 |
+
+点击 **Add webhook** 保存，GitHub 会立即发一次 `ping` 请求，返回 `200` 表示连通。
+
+### 第七步：测试自动部署
+
+```bash
+# 本地推送任意代码变更到 main 分支
+git push origin main
+
+# 服务器查看部署日志
+tail -f /www/wwwlogs/jiliao-deploy.log
+```
+
+部署日志格式示例：
+
+```
+[2026-02-28 14:30:01] INFO  Received event=push branch=main
+[2026-02-28 14:30:01] INFO  Deploy triggered: 2 commit(s) by yourname on branch main
+[2026-02-28 14:30:01] ========== 开始部署 ==========
+[2026-02-28 14:30:02] [1/5] git pull origin main
+[2026-02-28 14:30:03] 当前 commit: a1b2c3d - feat: 新增功能
+[2026-02-28 14:30:03] [2/5] composer.json 无变更，跳过
+[2026-02-28 14:30:03] [3/5] 修正目录权限
+[2026-02-28 14:30:03] [4/5] 跳过独立迁移
+[2026-02-28 14:30:04] [5/5] server/ 目录有变更，重启 WebSocket 进程…
+[2026-02-28 14:30:04] WebSocket 重启成功
+[2026-02-28 14:30:04] ========== 部署完成 ==========
+```
+
+### 手动触发部署
+
+无需 Webhook 也可直接在服务器上手动执行：
+
+```bash
+bash /www/wwwroot/jiliao/scripts/deploy.sh
+```
+
+### 常见问题
+
+#### Webhook 返回 403
+
+`.env` 中的 `WEBHOOK_SECRET` 与 GitHub 填写的 Secret 不一致。重新生成并保持两处一致。
+
+#### `git pull` 报 `Permission denied (publickey)`
+
+www 用户的 SSH Key 未添加到 GitHub，或远端仍使用 HTTPS 协议（执行第一、二步）。
+
+#### `supervisorctl restart` 提示 `no such process`
+
+`deploy.sh` 中 `WS_SERVICE` 变量与实际 supervisor 配置名不一致，检查：
+
+```bash
+supervisorctl status   # 确认进程名
+```
+
+然后修改 [scripts/deploy.sh](scripts/deploy.sh) 第 12 行的 `WS_SERVICE` 值。
+
+#### PHP 版本不对
+
+`deploy.sh` 默认使用 `/www/server/php/81/bin/php`，若使用其他版本修改第 9 行：
+
+```bash
+PHP_BIN=/www/server/php/82/bin/php bash scripts/deploy.sh
+```
+
+---
+
 ## 环境变量说明
 
 | 变量 | 默认值 | 说明 |
@@ -327,6 +482,7 @@ chmod 640 /www/wwwroot/jiliao/.env
 | `RATE_LIMIT_MAX` | `120` | 接口速率上限（次/窗口） |
 | `RATE_LIMIT_WINDOW` | `60` | 速率限制窗口（秒） |
 | `CAPTCHA_ENABLED` | `true` | 是否启用滑块验证码 |
+| `WEBHOOK_SECRET` | — | GitHub Webhook 签名密钥（自动部署用，留空则禁用）|
 
 ---
 
