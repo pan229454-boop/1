@@ -332,33 +332,455 @@ chmod 640 /www/wwwroot/jiliao/.env
 
 ## 常见问题
 
-### Q：WebSocket 无法连接？
-1. 确认 Supervisor 进程状态为 `RUNNING`：`supervisorctl status`
-2. 检查 Workerman 日志：`tail -f /www/wwwlogs/jiliao-ws.log`
-3. 确认 Nginx `/ws` 代理配置正确，Upgrade/Connection 头已传递
-4. 浏览器 Console 查看 WS 错误信息
+> 排查前建议先运行快速环境检查，确认PHP版本与必需扩展：
+> ```bash
+> php -v                              # 确认 >= 7.4
+> php -m | grep -E 'pcntl|posix|pdo|mbstring|curl|gd'   # 确认扩展存在
+> ```
 
-### Q：API 返回 500？
-1. 开启 `APP_DEBUG=true` 查看详细错误（生产环境排错后关闭）
+---
+
+### 一、Composer 安装依赖报错
+
+#### 1. `requires php >=7.4`（PHP 版本不符）
+
+```
+Your requirements could not be resolved to an installable set of packages.
+  Problem 1 - workerman/workerman 4.x requires php >=7.4 ...
+```
+
+**原因：** 系统默认 PHP 版本低于 7.4。
+
+**解决：**
+```bash
+# 宝塔：在「软件商店 → PHP 管理」安装 PHP 8.1，然后切换命令行版本
+ln -sf /www/server/php/81/bin/php /usr/local/bin/php
+php -v    # 确认已指向 8.1
+composer install
+```
+
+---
+
+#### 2. `The requested PHP extension ext-pcntl / ext-posix is missing`
+
+```
+workerman/workerman requires ext-pcntl * -> it is missing from your system.
+```
+
+**原因：** `pcntl`、`posix` 扩展未安装（WebSocket 进程必须）。
+
+**解决（宝塔）：** 软件商店 → PHP 8.1 → 安装扩展 → 搜索 `pcntl` / `posix` → 一键安装
+
+**手动安装（Ubuntu/Debian）：**
+```bash
+apt install -y php8.1-dev
+pecl install pcntl   # 若发行版自带则直接：
+php8.1 -m | grep pcntl   # 宝塔面板通常自带，重启PHP即可
+```
+
+> 安装完扩展后必须重启 PHP-FPM 并重新启动 WebSocket 进程。
+
+---
+
+#### 3. 网络超时 / GitHub 限流
+
+```
+Failed to download vendor/package from dist: Could not authenticate against github.com
+The process timed out after 300 seconds
+```
+
+**解决：切换阿里云 Composer 镜像**
+```bash
+composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
+composer install
+```
+
+若仍超时（服务器完全无法访问 GitHub），改用 `--prefer-dist --no-scripts`：
+```bash
+composer install --prefer-dist --no-scripts --no-progress
+```
+
+---
+
+#### 4. `proc_open()` 被禁用（宝塔安全策略）
+
+```
+proc_open(): open_basedir restriction in effect / proc_open has been disabled
+```
+
+**原因：** 宝塔默认把 `proc_open`、`proc_get_status` 等函数加入禁用列表。
+
+**解决：** 宝塔面板 → 软件商店 → PHP 8.1 → 配置 → 禁用函数 → 删除 `proc_open` 和 `proc_get_status` → 保存
+
+---
+
+#### 5. `Allowed memory size exhausted`
+
+```
+PHP Fatal error: Allowed memory size of 134217728 bytes exhausted
+```
+
+**解决：临时增大内存限制**
+```bash
+php -d memory_limit=512M /usr/local/bin/composer install
+```
+
+---
+
+### 二、WebSocket 服务启动报错
+
+#### 1. `PHP Extension pcntl / posix is required`
+
+```
+PHP Extension pcntl is not installed, please install it.
+```
+
+**原因：** Workerman 强依赖这两个扩展。
+
+**解决：** 同"Composer 报 ext-pcntl 缺失"，安装扩展后重新启动：
+```bash
+# 宝塔 PHP 8.1 扩展页面安装 pcntl、posix
+supervisorctl restart jiliao-ws
+```
+
+---
+
+#### 2. `Address already in use` / 端口冲突
+
+```
+bind(): Address already in use: 9501
+```
+
+**原因：** 9501 端口已被其他进程占用（通常是前一个遗留进程）。
+
+**解决：**
+```bash
+# 找到占用进程
+lsof -i :9501
+# 或
+fuser 9501/tcp
+
+# 强制释放端口
+fuser -k 9501/tcp
+
+# 若通过 Supervisor 管理，先 stop 再 start
+supervisorctl stop jiliao-ws
+fuser -k 9501/tcp
+supervisorctl start jiliao-ws
+```
+
+---
+
+#### 3. `.env 文件不存在` / 启动时配置读取失败
+
+```
+.env file not found. Please run the installer first.
+[ERROR] Failed to open stream: No such file or directory /www/wwwroot/jiliao/.env
+```
+
+**原因：** 未运行安装向导，`.env` 尚未生成。
+
+**解决：** 先访问 `http://你的域名/install.php` 完成安装，再启动 WebSocket。
+
+若安装向导已跑过但 `.env` 消失：手动复制并填写配置
+```bash
+cp .env.example .env
+# 编辑 DB_* APP_URL 等字段
+nano .env
+```
+
+---
+
+#### 4. `Failed to daemonize`（Daemon 化失败）
+
+```
+Workerman: [warning] can not daemonize process without pcntl extension
+```
+
+**原因：** `pcntl` 或 `posix` 扩展缺失，进程无法以后台 daemon 方式运行。
+
+**解决：** 安装两个扩展（同第 1 条）。测试时可以不加 `-d` 参数，前台运行验证：
+```bash
+php server/ws/server.php start    # 不加 -d，手动Ctrl+C退出
+```
+
+---
+
+#### 5. 以 root 用户运行出现警告
+
+```
+Workerman: WARNING: Running as root is not recommended. Use a dedicated user instead.
+```
+
+**原因：** 出于安全，Workerman 不推荐 root 权限运行。
+
+**解决（生产环境）：** Supervisor 配置中指定 `user = www`（宝塔默认 Web 用户）
+
+```ini
+[program:jiliao-ws]
+user = www
+command = /usr/bin/php8.1 /www/wwwroot/jiliao/server/ws/server.php start
+```
+
+> 测试环境可忽略此警告，不影响功能。
+
+---
+
+### 三、Supervisor 进程管理问题
+
+#### 1. 进程状态为 FATAL / BACKOFF（启动失败）
+
+```bash
+supervisorctl status
+# jiliao-ws   FATAL   Exited too quickly (process log may have details)
+```
+
+**诊断：先查看日志**
+```bash
+tail -50 /www/wwwlogs/jiliao-ws.log
+```
+
+常见原因及处理：
+
+| 日志关键词 | 原因 | 解决 |
+|-----------|------|------|
+| `pcntl extension is not installed` | 缺失扩展 | 安装 pcntl/posix 扩展 |
+| `Address already in use` | 端口冲突 | `fuser -k 9501/tcp` |
+| `.env file not found` | 未跑安装向导 | 先完成安装 |
+| `No such file or directory` | command 路径错误 | 用 `which php8.1` 确认 PHP 路径 |
+| `Permission denied` | 用户权限不足 | 检查 `user=www` 及目录权限 |
+
+---
+
+#### 2. PHP 可执行文件路径不正确
+
+```bash
+# 先确认实际路径
+which php8.1
+# /www/server/php/81/bin/php
+
+# 修改 supervisor 配置中的 command
+command = /www/server/php/81/bin/php /www/wwwroot/jiliao/server/ws/server.php start
+```
+
+---
+
+#### 3. 修改配置后 Supervisor 不生效
+
+```bash
+# 修改 .conf 文件后必须执行
+supervisorctl reread      # 重新读取配置
+supervisorctl update      # 应用变更（会重启受影响进程）
+supervisorctl status      # 确认 RUNNING
+```
+
+---
+
+#### 4. Supervisor 服务本身未启动
+
+```bash
+systemctl status supervisord     # 查看状态
+systemctl start supervisord      # 启动
+systemctl enable supervisord     # 开机自启
+```
+
+---
+
+### 四、Nginx WebSocket 代理问题
+
+#### 1. WebSocket 握手返回 502 Bad Gateway
+
+**原因：** 通常是 Nginx 未将 `Upgrade` 协议头传递给 Workerman。
+
+**检查 Nginx 配置是否包含以下关键行：**
+
+```nginx
+location /ws {
+    proxy_pass http://127.0.0.1:9501;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;       # ← 必须
+    proxy_set_header Connection "Upgrade";         # ← 必须
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_read_timeout 3600s;                      # 长连接不能超时
+    proxy_send_timeout 3600s;
+}
+```
+
+> `proxy_read_timeout` 默认 60 秒，WebSocket 长连接会被 Nginx 主动断开，必须设为 3600 或更大。
+
+---
+
+#### 2. `proxy_pass` 端口与 `.env WS_PORT` 不一致
+
+确认三处端口一致：
+- `.env`：`WS_PORT=9501`
+- Nginx：`proxy_pass http://127.0.0.1:9501`
+- Supervisor command 中启动的端口
+
+---
+
+#### 3. WebSocket 握手返回 400 / 101 后立即断连
+
+查看 Workerman 日志：
+```bash
+tail -f /www/wwwlogs/jiliao-ws.log
+```
+
+若日志无异常，检查浏览器 Console → Network → WS 连接 → 查看 Headers，确认请求头包含 `Upgrade: websocket`。
+
+---
+
+### 五、安装向导数据库报错
+
+#### 1. `Access denied for user 'xxx'@'localhost'`
+
+**原因：** `.env` 数据库账号/密码错误，或该用户没有目标库的权限。
+
+**解决：**
+1. 宝塔面板 → 数据库 → 确认数据库用户名和密码（可重置）
+2. 确认该用户对 `jiliao` 数据库有 **ALL PRIVILEGES**
+3. 更新 `.env` 中 `DB_USER` / `DB_PASS`
+
+---
+
+#### 2. `SQLSTATE[HY000] [2002] Connection refused`
+
+**原因：** MySQL 服务未运行，或 `DB_HOST` 填写有误。
+
+**解决：**
+```bash
+systemctl status mysql      # 检查 MySQL 状态
+systemctl start mysql       # 若未运行则启动
+```
+
+宝塔：软件商店 → MySQL → 启动
+
+---
+
+#### 3. 安装时报 `Table 'xxx' already exists`
+
+**原因：** 数据库已有旧表，重新安装时冲突。
+
+**解决：** 删除数据库并重建（宝塔：数据库 → 删除 → 重新创建），然后重新运行安装向导。
+
+---
+
+#### 4. 安装向导已锁，无法重新安装
+
+删除锁文件后重新访问 `/install.php`：
+```bash
+rm /www/wwwroot/jiliao/install.lock
+```
+
+---
+
+### 六、HTTPS / SSL 下 WebSocket 断连
+
+#### 1. 浏览器控制台提示 `Mixed Content`
+
+```
+Mixed Content: The page at 'https://…' was loaded over HTTPS, 
+but attempted to connect a non-secure WebSocket 'ws://...'
+```
+
+**原因：** 站点已用 HTTPS，但前端仍使用 `ws://` 协议。
+
+**解决：**
+1. `.env` 中将 `APP_URL` 改为 `https://你的域名`
+2. 重新安装或手动编辑 `.env` 使其生效
+3. 前端 JS 会根据 `APP_URL` 自动判断使用 `wss://` 还是 `ws://`
+
+---
+
+#### 2. `wss://` 连接失败（SSL 证书错误）
+
+**原因：** Nginx SSL 配置不全，或 WebSocket 代理未启用 SSL。
+
+**标准 wss 代理配置（Nginx）：**
+```nginx
+server {
+    listen 443 ssl;
+    server_name 你的域名;
+
+    ssl_certificate     /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    # WebSocket 代理（Nginx 做 SSL 终止，回源到 ws://）
+    location /ws {
+        proxy_pass http://127.0.0.1:9501;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
+```
+
+> Workerman 本身监听普通 `ws://`，由 Nginx 在前端提供 SSL 终止，无需在 Workerman 层面配置证书。
+
+---
+
+#### 3. `SESSION_SECURE` 导致登录 Cookie 在 HTTP 下丢失
+
+HTTPS 站点必须将 `.env` 中 `SESSION_SECURE=true`；
+若在 HTTP 环境下却设成了 `true`，Cookie 无法传递，会导致登录失败。
+
+---
+
+### 七、目录权限问题
+
+#### 1. `mkdir(): Permission denied` / 图片上传失败
+
+```bash
+# 赋予 uploads 和 storage 目录 www 用户写权限
+chown -R www:www /www/wwwroot/jiliao/public/uploads
+chown -R www:www /www/wwwroot/jiliao/storage
+chmod -R 775     /www/wwwroot/jiliao/public/uploads
+chmod -R 775     /www/wwwroot/jiliao/storage
+```
+
+---
+
+#### 2. `.env` 无法写入（安装向导报错）
+
+```bash
+chown www:www /www/wwwroot/jiliao/.env
+chmod 664     /www/wwwroot/jiliao/.env
+```
+
+---
+
+### 八、其他常见问题
+
+#### Q：API 返回 500？
+1. 临时开启 `APP_DEBUG=true`，刷新后查看错误详情
 2. 查看 PHP 错误日志：`tail -f /www/wwwlogs/jiliao_error.log`
 3. 检查 `.env` 数据库配置是否正确
 
-### Q：文件上传失败？
-1. 确认 `storage/` 和 `public/uploads/` 目录对 `www` 用户可写
-2. 检查 PHP `upload_max_filesize` 和 `post_max_size`（宝塔 PHP 设置中修改）
+#### Q：中文 / Emoji 乱码？
+确认数据库创建时使用 `utf8mb4_unicode_ci` 字符集，`.env` 中 `DB_CHARSET=utf8mb4`。
 
-### Q：安装向导已锁，如何重装？
-删除项目根目录下的 `install.lock` 文件，再次访问 `/install.php`。
+#### Q：消息 TXT 文件在哪里？
+- 群聊：`storage/chat/group/`
+- 私聊：`storage/chat/private/`
+- 文件名格式：`chat_{群号/uid_uid}_{YYYYMMDD}.txt`
+- 超过 5 MB 自动归档为 `.zip`
 
-### Q：中文/Emoji 乱码？
-确认数据库已创建为 `utf8mb4_unicode_ci`，`.env` 中 `DB_CHARSET=utf8mb4`。
+#### Q：如何查看/清理实时日志？
+```bash
+# WebSocket 进程日志
+tail -f /www/wwwlogs/jiliao-ws.log
 
-### Q：消息 TXT 文件在哪里？
-`storage/chat/group/` 存群聊，`storage/chat/private/` 存私聊，文件名格式：
+# PHP/Nginx 错误日志
+tail -f /www/wwwlogs/jiliao_error.log
+
+# 清空日志（不影响运行）
+> /www/wwwlogs/jiliao-ws.log
 ```
-chat_{群号/uid_uid}_{YYYYMMDD}.txt
-```
-每行为一个 JSON 对象，超过 5 MB 自动归档为 `.zip`。
 
 ---
 
