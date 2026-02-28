@@ -400,6 +400,23 @@ switch ($action) {
         Response::json(['code' => 0, 'msg' => '设置已保存']);
         break;
 
+    case 'settings/public':
+        // 公开设置，无需登录验证
+        $pubKeys = [
+            'app_name','app_slogan','index_bg','auth_bg','login_bg',
+            'ui_skin','primary_color','custom_css','custom_head_html',
+            'captcha_enabled','captcha_slider_enable',
+            'register_require_email','register_require_phone',
+            'email_verify_required','phone_verify_required',
+            'register_email_verify','register_phone_verify',
+        ];
+        $ph  = implode(',', array_fill(0, count($pubKeys), '?'));
+        $rows = $db->query("SELECT `key`,val FROM settings WHERE `key` IN ($ph)", $pubKeys);
+        $map  = [];
+        foreach ($rows ?? [] as $r) { $map[$r['key']] = $r['val']; }
+        Response::json(['code' => 0, 'data' => $map]);
+        break;
+
     case 'admin/stats':
         $auth->requireRole(3);
         $totalUsers    = (int)$db->single('SELECT COUNT(*) FROM users');

@@ -199,6 +199,18 @@ let unreadMap = {};      // 'g_0001' | 'p_uid' => 未读数
   }
   ME = meRes.data;
 
+  // 拉取公开设置并应用 UI 皮肤 / 自定义 CSS
+  api('settings/public', {}, 'GET').then(r => {
+    if (r.code !== 0 || !r.data) return;
+    if (r.data.ui_skin)    applyUITheme(r.data.ui_skin);
+    if (r.data.custom_css) {
+      const el = document.getElementById('app-custom-css') ?? document.createElement('style');
+      el.id = 'app-custom-css';
+      el.textContent = r.data.custom_css;
+      if (!el.parentNode) document.head.appendChild(el);
+    }
+  });
+
   // 2. 注入 session-id（用于 WS 认证）
   // PHP 侧在 HTML 渲染时注入，此处通过 cookie 获取
   document.getElementById('meta-session').content = meRes.data.session_id ?? '';

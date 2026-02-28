@@ -157,6 +157,9 @@
       <div class="admin-nav-item" onclick="showPage('settings-recall')">
         <span class="nav-icon">↩️</span><span>撤回设置</span>
       </div>
+      <div class="admin-nav-item" onclick="showPage('settings-skin')">
+        <span class="nav-icon">🎨</span><span>界面皮肤</span>
+      </div>
     </div>
 
     <div style="flex:1"></div>
@@ -236,6 +239,8 @@ async function showPage(name) {
     case 'settings-smtp':   await renderSettings('smtp'); break;
     case 'settings-security': await renderSettings('security'); break;
     case 'settings-theme':  await renderSettings('theme'); break;
+    case 'settings-recall': await renderSettings('recall'); break;
+    case 'settings-skin':   await renderSkinPage(); break;
   }
 }
 
@@ -518,6 +523,87 @@ async function testSmtp() {
   const res = await api('admin/mail/test', { email });
   hideLoading();
   toast(res.msg, res.code === 0 ? 'success' : 'error');
+}
+
+// ================================================================
+//  界面皮肤选择
+// ================================================================
+let selectedSkin = 'default';
+
+async function renderSkinPage() {
+  if (!Object.keys(settings).length) {
+    const res = await api('admin/settings/get', { keys: '*' }, 'GET');
+    settings = res.data ?? {};
+  }
+  selectedSkin = settings.ui_skin ?? 'default';
+  _renderSkinCards();
+}
+
+function _renderSkinCards() {
+  const cards = Object.entries(UI_THEMES).map(([key, t]) => {
+    const isActive = key === selectedSkin;
+    return `<div data-skin="${key}" onclick="selectSkin('${key}')" style="
+        border-radius:12px;overflow:hidden;cursor:pointer;
+        border:2.5px solid ${isActive ? 'var(--primary)' : 'var(--border)'};
+        transition:.2s;background:var(--bg-card);box-shadow:var(--shadow-sm)">
+      <div style="height:72px;background:${t.preview};position:relative;display:flex;align-items:center;justify-content:center;font-size:1.8rem">
+        ${t.badge}
+        ${isActive ? '<span style="position:absolute;top:5px;right:6px;background:var(--primary);color:#fff;font-size:.68rem;padding:.2rem .45rem;border-radius:999px;font-weight:600">✓ 当前</span>' : ''}
+      </div>
+      <div style="padding:.55rem .8rem">
+        <div style="font-size:.875rem;font-weight:600;color:var(--text-primary)">${t.label}</div>
+        <div style="display:flex;gap:4px;margin-top:.3rem">
+          ${t.vars['--primary'] ? `<span style="width:14px;height:14px;border-radius:50%;background:${t.vars['--primary']};display:inline-block"></span>` : '<span style="width:14px;height:14px;border-radius:50%;background:#4f73f8;display:inline-block"></span>'}
+          ${t.vars['--bubble-self'] ? `<span style="width:14px;height:14px;border-radius:50%;background:${t.vars['--bubble-self']};display:inline-block"></span>` : ''}
+          ${t.vars['--bg-sidebar'] ? `<span style="width:14px;height:14px;border-radius:50%;background:${t.vars['--bg-sidebar']};display:inline-block;border:1px solid var(--border)"></span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('adminMain').innerHTML = `
+    <div class="page-title">界面皮肤</div>
+    <p style="color:var(--text-secondary);font-size:.875rem;margin-bottom:1.25rem">
+      为全站选择一种主题风格，用户下次刷新页面后自动生效。
+    </p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:.875rem;margin-bottom:1.5rem" id="skinGrid">
+      ${cards}
+    </div>
+    <div style="display:flex;align-items:center;gap:.75rem">
+      <button class="btn btn-primary" onclick="saveSkin()">💾 应用皮肤</button>
+      <span id="skinPreviewNote" style="font-size:.82rem;color:var(--text-muted)">点击卡片即可预览效果</span>
+    </div>`;
+}
+
+function selectSkin(name) {
+  selectedSkin = name;
+  applyUITheme(name); // 立即预览
+  // 刷新卡片选中状态
+  document.querySelectorAll('#skinGrid > div[data-skin]').forEach(card => {
+    const isActive = card.dataset.skin === name;
+    card.style.borderColor = isActive ? 'var(--primary)' : 'var(--border)';
+    const prev = card.querySelector('div:first-child');
+    const badge = prev.querySelector('span');
+    if (isActive && !badge) {
+      const b = document.createElement('span');
+      b.style.cssText = 'position:absolute;top:5px;right:6px;background:var(--primary);color:#fff;font-size:.68rem;padding:.2rem .45rem;border-radius:999px;font-weight:600';
+      b.textContent = '✓ 当前';
+      prev.appendChild(b);
+    } else if (!isActive && badge) {
+      badge.remove();
+    }
+  });
+  document.getElementById('skinPreviewNote').textContent = `预览中：${UI_THEMES[name]?.label ?? name} — 点击"应用皮肤"保存`;
+}
+
+async function saveSkin() {
+  const res = await api('admin/settings/save', { settings: { ui_skin: selectedSkin } });
+  if (res.code === 0) {
+    settings.ui_skin = selectedSkin;
+    toast(`皮肤「${UI_THEMES[selectedSkin]?.label}」已保存，全站生效`, 'success');
+  } else {
+    toast(res.msg ?? '保存失败', 'error');
+  }
 }
 
 function goApp() { location.href = '/app.html'; }

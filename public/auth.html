@@ -130,9 +130,11 @@ let appConfig    = {};
 // ── 初始化 ────────────────────────────────────────────────────
 (async function init() {
   // 读取后台配置（应用名、背景图、验证码开关等）
-  const res = await api('admin/settings/get', {}, 'GET').catch(() => ({code:-1}));
+  const res = await api('settings/public', {}, 'GET').catch(() => ({code:-1}));
   if (res.code === 0) {
     appConfig = res.data ?? {};
+    // 应用 UI 皮肤
+    if (appConfig.ui_skin) applyUITheme(appConfig.ui_skin);
     // 应用名/口号
     if (appConfig.app_name) {
       document.title = `登录 / 注册 - ${appConfig.app_name}`;

@@ -106,6 +106,44 @@ function applyTheme(mode) {
 }
 
 // ================================================================
+//  界面皮肤（主色调 + 侧边栏 + 气泡样式）
+// ================================================================
+
+const UI_THEMES = {
+  default:        { label: '极聊默认',  badge: '🔵', preview: 'linear-gradient(135deg,#4f73f8,#7a99ff)', vars: {} },
+  genshin:        { label: '原神风格',  badge: '✨', preview: 'linear-gradient(135deg,#c49a1c,#8b6914)', vars: {'--primary':'#c49a1c','--primary-dark':'#8b6914','--primary-light':'#e8c040','--accent':'#c44040','--bg-sidebar':'#1e1208','--bubble-self':'#c49a1c'} },
+  wutheringwaves: { label: '鸣潮风格',  badge: '🌀', preview: 'linear-gradient(135deg,#0d6e8a,#00bfa5)', vars: {'--primary':'#00bfa5','--primary-dark':'#008f7a','--primary-light':'#40d9c8','--accent':'#ff6b35','--bg-sidebar':'#0a1e24','--bubble-self':'#0d8a7b'} },
+  hok:            { label: '王者荣耀',  badge: '👑', preview: 'linear-gradient(135deg,#6d1515,#d4af37)', vars: {'--primary':'#d4af37','--primary-dark':'#a88620','--primary-light':'#f0d060','--accent':'#c41c1c','--bg-sidebar':'#1a0808','--bubble-self':'#b8860b'} },
+  pubg:           { label: '和平精英',  badge: '🪖', preview: 'linear-gradient(135deg,#3d5a1e,#7a9e4e)', vars: {'--primary':'#7a9e4e','--primary-dark':'#5a7a30','--primary-light':'#9cc464','--accent':'#c47a1c','--bg-sidebar':'#1a2408','--bubble-self':'#5a7830'} },
+  anime:          { label: '二次元',    badge: '🌸', preview: 'linear-gradient(135deg,#e91e8c,#a855f7)', vars: {'--primary':'#e91e8c','--primary-dark':'#b2157a','--primary-light':'#f556b0','--accent':'#a855f7','--bg-sidebar':'#1a0820','--bubble-self':'#d9188f'} },
+  sakura:         { label: '樱花',      badge: '🌺', preview: 'linear-gradient(135deg,#ff6b9d,#ffb3c8)', vars: {'--primary':'#ff6b9d','--primary-dark':'#e05580','--primary-light':'#ffa0be','--accent':'#ff9f55','--bg-sidebar':'#200810','--bubble-self':'#e85590'} },
+  cyberpunk:      { label: '赛博朋克',  badge: '⚡', preview: 'linear-gradient(135deg,#0f0f23,#b14fff 50%,#00ffff)', vars: {'--primary':'#b14fff','--primary-dark':'#8a30d4','--primary-light':'#d080ff','--accent':'#00ffff','--bg-sidebar':'#080815','--bubble-self':'#7b2de0'} },
+  ocean:          { label: '深海蓝',    badge: '🌊', preview: 'linear-gradient(135deg,#0c4a6e,#0891b2)', vars: {'--primary':'#0891b2','--primary-dark':'#0369a1','--primary-light':'#22b8d1','--accent':'#0d9488','--bg-sidebar':'#051520','--bubble-self':'#0780a0'} },
+  forest:         { label: '墨林绿',    badge: '🌿', preview: 'linear-gradient(135deg,#052e16,#059669)', vars: {'--primary':'#059669','--primary-dark':'#047857','--primary-light':'#34d399','--accent':'#78716c','--bg-sidebar':'#021208','--bubble-self':'#047857'} },
+};
+
+/**
+ * 应用 UI 皮肤（将 CSS 变量覆盖到 :root）
+ * @param {string} name  皮肤 key（见 UI_THEMES）
+ */
+function applyUITheme(name = 'default') {
+    const allVarKeys = ['--primary','--primary-dark','--primary-light','--accent','--bg-sidebar','--bubble-self'];
+    const root = document.documentElement;
+    allVarKeys.forEach(k => root.style.removeProperty(k));
+    const t = UI_THEMES[name];
+    if (t) Object.entries(t.vars).forEach(([k, v]) => root.style.setProperty(k, v));
+    localStorage.setItem('jl_skin', name);
+}
+
+/**
+ * 从 LocalStorage 快速恢复上次选择的皮肤（无需网络请求）
+ */
+function initUITheme() {
+    const saved = localStorage.getItem('jl_skin');
+    if (saved && saved !== 'default') applyUITheme(saved);
+}
+
+// ================================================================
 //  WebSocket 客户端
 // ================================================================
 
@@ -611,7 +649,8 @@ class SliderCaptcha {
 document.addEventListener('DOMContentLoaded', () => {
     // 1. 主题初始化
     initTheme();
-
+    // 1b. UI 皮肤快速恢复（从 localStorage）
+    initUITheme();
     // 2. 全局主题切换按钮（class="js-theme-toggle"）
     document.querySelectorAll('.js-theme-toggle').forEach(btn => {
         btn.addEventListener('click', () => applyTheme('toggle'));
