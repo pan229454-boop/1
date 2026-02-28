@@ -736,6 +736,14 @@ ul, ol { list-style: none; }
 .install-step.completed .install-step-num { background: #22c55e; color: #fff; }
 
 /* ── 响应式适配 ──────────────────────────────────────────────── */
+/* 面板头部：移动端头像/主题按钮默认隐藏，移动端时显示 */
+.session-panel-avatar-btn {
+    display: none; cursor: pointer; width: 32px; height: 32px;
+    border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    align-items: center; justify-content: center;
+}
+.session-panel-theme-btn { display: none; }
+
 @media (max-width: 768px) {
     .session-panel { width: 100%; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; transform: translateX(-100%); transition: transform var(--trans-base); }
     .session-panel.open { transform: translateX(0); }
@@ -747,6 +755,11 @@ ul, ol { list-style: none; }
     .modal { padding: 1.25rem; }
     .chat-messages { padding: .875rem; }
     .msg-group { max-width: 88%; }
+    /* 移动端：面板头部显示头像+居中标题+主题切换 */
+    .session-panel-avatar-btn { display: flex; }
+    .session-panel-theme-btn  { display: flex; }
+    .session-panel-header     { position: relative; }
+    .session-panel-title      { position: absolute; left: 50%; transform: translateX(-50%); pointer-events: none; }
 }
 
 /* ── 图片灯箱 ─────────────────────────────────────────────────── */

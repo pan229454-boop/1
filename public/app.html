@@ -49,8 +49,14 @@
   <!-- ── 会话列表面板 ───────────────────────────────────────── -->
   <div class="session-panel" id="panel-chat">
     <div class="session-panel-header">
+      <!-- 移动端：左侧头像（点击=我的账号），桌面端隐藏 -->
+      <div id="panel-avatar-btn" class="session-panel-avatar-btn" title="我的账号" onclick="showMeMenu()">
+        <div class="skeleton" style="width:32px;height:32px;border-radius:50%"></div>
+      </div>
       <span class="session-panel-title">消息</span>
-      <div style="display:flex;gap:.25rem">
+      <div style="display:flex;gap:.25rem;align-items:center">
+        <!-- 移动端：主题切换按钮，桌面端隐藏（桌面端在侧边栏） -->
+        <button class="btn-icon js-theme-toggle session-panel-theme-btn" title="切换主题">🌙</button>
         <button class="btn-icon" title="新建群组" onclick="createGroupModal()">+</button>
         <button class="btn-icon" id="menuBtn" onclick="showMainMenu(this)">☰</button>
       </div>
@@ -477,9 +483,17 @@ async function loadHistory(s) {
 
   msgs.innerHTML = '';
   if (res.code === 0 && res.data?.length) {
+    // 构建昵称映射：群聊用 groupMembers，私聊用对方名称
+    const nickMap = {};
+    if (s.type === 'group') {
+      (groupMembers[s.id] ?? []).forEach(m => { nickMap[m.uid] = m.nickname; });
+    }
     res.data.forEach(m => appendMessage({
       msg_id: m.id, chat_type: s.type === 'group' ? 2 : 1,
-      from_uid: m.from, from_nickname: m.from, // 需 lookup，简化处理
+      from_uid: m.from,
+      from_nickname: s.type === 'group'
+        ? (nickMap[m.from] ?? `用户${m.from}`)
+        : (m.from == ME.uid ? ME.nickname : s.name),
       msg_type: m.type, content: m.content, reply_msg_id: m.reply, ts: m.ts,
     }));
     scrollToBottom(msgs, false);
@@ -493,7 +507,8 @@ async function loadGroupNotice(gid) {
   const res = await api('notice/get', { gid }, 'GET');
   const bar = document.getElementById('noticeBar');
   if (res.code === 0 && res.data) {
-    document.getElementById('noticeContent').textContent = res.data.content;
+    const author = res.data.author_name ? `${res.data.author_name}: ` : '';
+    document.getElementById('noticeContent').textContent = `📢 ${author}${res.data.content}`;
     bar.classList.remove('hidden');
   } else {
     bar.classList.add('hidden');
@@ -701,15 +716,21 @@ function clearReply() {
 // ================================================================
 function showMsgMenu(e, pkt) {
   const isSelf = pkt.from_uid == ME.uid;
-  const items  = [
+  // 群聊中本人的群角色（0=成员, 1=管理员, 2=群主）
+  const gid = currentSession?.type === 'group' ? currentSession.id : null;
+  const gm  = gid ? (groupMembers[gid] ?? []).find(m => m.uid == ME.uid) : null;
+  const myGroupRole    = gm?.role ?? 0;
+  const canRecallOthers = ME.role >= 3 || myGroupRole >= 1;
+
+  const items = [
     { label: '引用回复', icon: '↩', action: () => setReply(pkt) },
     { label: '复制文字', icon: '📋', action: () => navigator.clipboard?.writeText(pkt.content ?? '') },
   ];
-  if (isSelf) {
+  if (isSelf || canRecallOthers) {
     items.push('divider');
     items.push({ label: '撤回消息', icon: '↩', danger: true, action: () => recallMsg(pkt) });
   }
-  if (ME.role >= 3) {
+  if (ME.role >= 3 || myGroupRole >= 1) {
     items.push({ label: '设为精华', icon: '⭐', action: () => api('msg/essence', { msg_id: pkt.msg_id, is_essence: 1 }).then(r => toast(r.msg, r.code===0?'success':'error')) });
     items.push({ label: '置顶消息', icon: '📌', action: () => api('msg/top',     { msg_id: pkt.msg_id, is_top: 1     }).then(r => toast(r.msg, r.code===0?'success':'error')) });
   }
@@ -825,10 +846,15 @@ async function loadOnlineCount() {
 // ================================================================
 function renderSelfAvatar() {
   const wrap = document.getElementById('self-avatar-btn');
-  if (ME.avatar) {
-    wrap.innerHTML = `<img src="${escHtml(ME.avatar)}" class="avatar" style="width:36px;height:36px">`;
-  } else {
-    wrap.innerHTML = avatarHtml(ME.nickname, 'avatar-sm');
+  const panelBtn = document.getElementById('panel-avatar-btn');
+  const avatarContent = ME.avatar
+    ? `<img src="${escHtml(ME.avatar)}" class="avatar" style="width:36px;height:36px">`
+    : avatarHtml(ME.nickname, 'avatar-sm');
+  if (wrap) wrap.innerHTML = avatarContent;
+  if (panelBtn) {
+    panelBtn.innerHTML = ME.avatar
+      ? `<img src="${escHtml(ME.avatar)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover">`
+      : avatarHtml(ME.nickname, 'avatar-sm');
   }
 }
 
@@ -957,6 +983,31 @@ function openGlobalSearch() {
 //  右侧信息面板
 // ================================================================
 function toggleInfoPanel() {
+  // 在小屏（1100px 以下）时，CSS 隐藏了侧边信息栏，改用 Modal 弹出群成员
+  if (window.innerWidth <= 1100) {
+    if (!currentSession || currentSession.type !== 'group') return;
+    const gid     = currentSession.id;
+    const members = groupMembers[gid] ?? [];
+    const rows = members.map(m => `
+      <div style="display:flex;align-items:center;gap:.625rem;padding:.4rem 0;cursor:pointer"
+           onclick="document.querySelector('.modal-backdrop')?.remove();clickAvatar(${m.uid})">
+        ${m.avatar ? `<img src="${escHtml(m.avatar)}" class="avatar avatar-xs">` : avatarHtml(m.nickname, 'avatar-xs')}
+        <div style="flex:1;min-width:0">
+          <div class="truncate text-sm font-semibold">${escHtml(m.nickname)}</div>
+          ${m.title ? `<div class="text-xs" style="color:var(--primary)">${escHtml(m.title)}</div>` : ''}
+        </div>
+        ${m.role >= 2 ? '<span style="font-size:.75rem;color:#f59e0b" title="群主">👑</span>'
+          : m.role >= 1 ? '<span style="font-size:.75rem;color:var(--primary)" title="管理员">⚡</span>' : ''}
+        ${m.is_online ? '<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;flex-shrink:0"></span>' : ''}
+      </div>`).join('');
+    showModal({
+      title: `群成员 (${members.length})`,
+      body: `<div style="max-height:55vh;overflow-y:auto">${rows}</div>`,
+      confirmText: '关闭',
+    });
+    return;
+  }
+  // 桌面端：切换侧边面板显示
   const panel = document.getElementById('infoPanel');
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : '';

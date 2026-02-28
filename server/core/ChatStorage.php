@@ -172,30 +172,43 @@ class ChatStorage
     // ──────────────────────────────────────────────────────────
 
     /**
-     * 撤回消息（仅对己方隐藏，TXT 原始记录保留）
+     * 撤回消息（支持角色时限配置，管理员/群主可撤回他人消息）
      *
-     * @param  string $msgId   消息UUID
-     * @param  int    $uid     操作者UID
+     * @param  string $msgId          消息UUID
+     * @param  int    $uid            操作者UID
+     * @param  int    $userRole       用户系统角色（1=普通,2=VIP,3=管理员,9=超管）
+     * @param  bool   $canRecallOthers 是否允许撤回他人消息（由调用方基于群角色决定）
      * @return array
      */
-    public function recall(string $msgId, int $uid): array
+    public function recall(string $msgId, int $uid, int $userRole = 1, bool $canRecallOthers = false): array
     {
-        // 仅允许2分钟内撤回（可后台配置）
         $row = $this->db->first(
             'SELECT from_uid, created_at FROM messages WHERE msg_id=?',
             [$msgId]
         );
         if (!$row) return ['code' => 404, 'msg' => '消息不存在'];
-        if ($row['from_uid'] != $uid) return ['code' => 403, 'msg' => '只能撤回自己的消息'];
 
-        $recallWindow = 120; // 秒
-        if (time() - strtotime($row['created_at']) > $recallWindow) {
-            return ['code' => 400, 'msg' => '超过撤回时限（2分钟）'];
+        $isSelf = ((int)$row['from_uid'] === $uid);
+        if (!$isSelf && !$canRecallOthers) {
+            return ['code' => 403, 'msg' => '只能撤回自己的消息'];
+        }
+
+        // 从 settings 表读取该角色的撤回时限（0 = 不限制）
+        $roleKey  = ($userRole >= 9) ? 9 : $userRole;
+        $keyMap   = [1 => 'recall_time_role1', 2 => 'recall_time_role2',
+                     3 => 'recall_time_role3', 9 => 'recall_time_role9'];
+        $defaults = [1 => 120, 2 => 300, 3 => 3600, 9 => 0];
+        $settKey  = $keyMap[$roleKey] ?? 'recall_time_role1';
+        $settRow  = $this->db->first("SELECT val FROM settings WHERE `key`=?", [$settKey]);
+        $window   = ($settRow !== false && $settRow !== null) ? (int)$settRow['val'] : ($defaults[$roleKey] ?? 120);
+
+        if ($window > 0 && time() - strtotime($row['created_at']) > $window) {
+            return ['code' => 400, 'msg' => "超过撤回时限（{$window}秒）"];
         }
 
         $this->db->execute(
-            'UPDATE messages SET is_deleted=1 WHERE msg_id=? AND from_uid=?',
-            [$msgId, $uid]
+            'UPDATE messages SET is_deleted=1 WHERE msg_id=?',
+            [$msgId]
         );
         return ['code' => 0, 'msg' => '已撤回'];
     }

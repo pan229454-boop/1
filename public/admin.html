@@ -154,6 +154,9 @@
       <div class="admin-nav-item" onclick="showPage('settings-theme')">
         <span class="nav-icon">🎨</span><span>主题定制</span>
       </div>
+      <div class="admin-nav-item" onclick="showPage('settings-recall')">
+        <span class="nav-icon">↩️</span><span>撤回设置</span>
+      </div>
     </div>
 
     <div style="flex:1"></div>
@@ -430,6 +433,15 @@ const SETTING_PAGES = {
       { key: 'primary_color',   label: '主色调 (CSS 颜色值)',     type: 'text', placeholder: '#4f73f8' },
       { key: 'custom_css',      label: '自定义 CSS (高级)',       type: 'textarea', rows: 8 },
       { key: 'custom_head_html', label: '自定义 HEAD HTML (高级)', type: 'textarea', rows: 4 },
+    ]
+  },
+  recall: {
+    title: '消息撤回设置',
+    fields: [
+      { key: 'recall_time_role1', label: '普通用户撤回时限 (秒)', type: 'number', placeholder: '120' },
+      { key: 'recall_time_role2', label: 'VIP 用户撤回时限 (秒)',   type: 'number', placeholder: '300' },
+      { key: 'recall_time_role3', label: '管理员撤回时限 (秒)',   type: 'number', placeholder: '3600' },
+      { key: 'recall_time_role9', label: '超管撤回时限 (秒)',       type: 'number', placeholder: '0 (不限)' },
     ]
   }
 };

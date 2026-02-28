@@ -277,7 +277,20 @@ switch ($action) {
     case 'msg/recall':
         $me    = $auth->requireLogin();
         $msgId = $data['msg_id'] ?? '';
-        Response::json($storage->recall($msgId, $me['uid']));
+        if (!$msgId) Response::fail('msg_id 不能为空');
+        // 查消息归属，判断是否可撤回他人
+        $msgRow = $db->first('SELECT from_uid, to_id, chat_type FROM messages WHERE msg_id=?', [$msgId]);
+        $canRecallOthers = false;
+        if ($msgRow && (int)$msgRow['chat_type'] === 2) {
+            // 群聊：群管理员 or 群主 or 系统管理员可撤回他人
+            if ($me['role'] >= 3) {
+                $canRecallOthers = true;
+            } else {
+                $gm = $db->first('SELECT role FROM group_members WHERE gid=? AND uid=?', [$msgRow['to_id'], $me['uid']]);
+                $canRecallOthers = ($gm && (int)$gm['role'] >= 1);
+            }
+        }
+        Response::json($storage->recall($msgId, $me['uid'], $me['role'], $canRecallOthers));
         break;
 
     case 'msg/search':
@@ -310,15 +323,24 @@ switch ($action) {
 
     case 'notice/get':
         $gid    = $data['gid'] ?? '';
-        $notice = $db->first('SELECT * FROM notices WHERE gid=? ORDER BY created_at DESC LIMIT 1', [$gid]);
+        $notice = $db->first(
+            'SELECT n.*, u.nickname AS author_name FROM notices n LEFT JOIN users u ON u.uid=n.created_by WHERE n.gid=? ORDER BY n.created_at DESC LIMIT 1',
+            [$gid]
+        );
         Response::json(['code' => 0, 'data' => $notice]);
         break;
 
     case 'notice/set':
-        $me      = $auth->requireRole(1);
+        $me      = $auth->requireLogin();
         $gid     = $data['gid'] ?? '';
         $content = trim($data['content'] ?? '');
         if (!$content) Response::fail('公告内容不能为空');
+        if (!$gid)     Response::fail('gid 不能为空');
+        // 权限：系统管理员 OR 群管理员/群主
+        if ($me['role'] < 3) {
+            $gm = $db->first('SELECT role FROM group_members WHERE gid=? AND uid=?', [$gid, $me['uid']]);
+            if (!$gm || (int)$gm['role'] < 1) Response::fail('仅群管理员或系统管理员可发布公告');
+        }
         $db->execute('INSERT INTO notices (gid,content,created_by,created_at) VALUES (?,?,?,NOW())',
             [$gid, $content, $me['uid']]);
         Response::json(['code' => 0, 'msg' => '群公告已更新']);
