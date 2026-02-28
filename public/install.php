@@ -135,7 +135,7 @@ function createAdmin(array $post): array {
         $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
         // uid 从 1 开始
         $pdo->exec("INSERT IGNORE INTO `users`(`uid`,`username`,`nickname`,`password`,`role`,`status`,`created_at`)
-                    VALUES(1, " . $pdo->quote($username) . ", " . $pdo->quote($nickname) . ", " . $pdo->quote($hash) . ", 9, 0, NOW())");
+                    VALUES(1, " . $pdo->quote($username) . ", " . $pdo->quote($nickname) . ", " . $pdo->quote($hash) . ", 9, 1, NOW())");
 
         // 加入默认群组
         $pdo->exec("INSERT IGNORE INTO `group_members`(`gid`,`uid`,`role`,`joined_at`) VALUES('0001',1,2,NOW())");
