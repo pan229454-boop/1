@@ -11,7 +11,8 @@
 declare(strict_types=1);
 
 // ── 引导 ──────────────────────────────────────────────────────
-require_once dirname(__DIR__, 2) . '/server/bootstrap.php';
+// api.php 位于 public/，根目录向上一级
+require_once dirname(__DIR__) . '/server/bootstrap.php';
 
 use JiLiao\Core\Auth;
 use JiLiao\Core\ChatStorage;
@@ -361,12 +362,20 @@ switch ($action) {
 
     case 'admin/users':
         $auth->requireRole(3);
-        $page  = max(1, (int)($data['page'] ?? 1));
-        $size  = min(50, (int)($data['size'] ?? 20));
+        $page   = max(1, (int)($data['page'] ?? 1));
+        $size   = min(50, (int)($data['size'] ?? 20));
         $offset = ($page - 1) * $size;
-        $total = (int)$db->single('SELECT COUNT(*) FROM users');
-        $users = $db->query("SELECT uid,username,nickname,role,status,email,phone,created_at,last_login_at FROM users ORDER BY id DESC LIMIT {$size} OFFSET {$offset}");
-        Response::json(['code' => 0, 'data' => ['total' => $total, 'list' => $users, 'page' => $page, 'size' => $size]]);
+        $q      = trim($data['q'] ?? '');
+        $where  = '';
+        $params = [];
+        if ($q !== '') {
+            $where    = 'WHERE nickname LIKE ? OR username LIKE ? OR uid = ?';
+            $like     = '%' . addslashes($q) . '%';
+            $params   = [$like, $like, (int)$q];
+        }
+        $total  = (int)$db->single("SELECT COUNT(*) FROM users {$where}", $params);
+        $users  = $db->query("SELECT uid,username,nickname,role,status,email,phone,created_at,last_login_at FROM users {$where} ORDER BY id DESC LIMIT {$size} OFFSET {$offset}", $params);
+        Response::json(['code' => 0, 'data' => $users, 'total' => $total, 'page' => $page, 'size' => $size]);
         break;
 
     case 'admin/user/status':
@@ -380,13 +389,16 @@ switch ($action) {
 
     case 'admin/groups':
         $auth->requireRole(3);
-        $groups = $db->query("SELECT g.*,(SELECT COUNT(*) FROM group_members WHERE gid=g.gid) as mc FROM `groups` g ORDER BY g.id DESC LIMIT 100");
+        $qg     = trim($data['q'] ?? '');
+        $whereG = $qg ? 'WHERE g.name LIKE ? OR g.gid LIKE ?' : '';
+        $paramG = $qg ? ['%' . addslashes($qg) . '%', '%' . addslashes($qg) . '%'] : [];
+        $groups = $db->query("SELECT g.*,(SELECT COUNT(*) FROM group_members WHERE gid=g.gid) as member_count FROM `groups` g {$whereG} ORDER BY g.id DESC LIMIT 200", $paramG);
         Response::json(['code' => 0, 'data' => $groups]);
         break;
 
     case 'admin/mail/test':
         $auth->requireRole(9);
-        $to = $data['to'] ?? '';
+        $to = $data['email'] ?? $data['to'] ?? '';
         if (!filter_var($to, FILTER_VALIDATE_EMAIL)) Response::fail('邮箱格式错误');
         Response::json(sendTestMail($to, $db));
         break;

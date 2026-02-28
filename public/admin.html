@@ -250,7 +250,7 @@ const USER_SIZE = 20;
 async function renderUsers(page = 1, search = '') {
   userPage = page;
   const res = await api('admin/users', { page, size: USER_SIZE, q: search }, 'GET');
-  const users = res.data ?? [];
+  const users = Array.isArray(res.data) ? res.data : [];
   const total = res.total ?? 0;
 
   document.getElementById('adminMain').innerHTML = `
