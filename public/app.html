@@ -214,9 +214,10 @@ let unreadMap = {};      // 'g_0001' | 'p_uid' => 未读数
     if (!document.hidden) loadOnlineCount();
   });
 
-  // 9. 移动端返回按钮
+  // 9. 移动端返回按钮 & 自动打开会话列表面板
   if (window.innerWidth <= 768) {
     document.getElementById('backBtn').style.display = '';
+    document.getElementById('panel-chat').classList.add('open');
   }
 })();
 
