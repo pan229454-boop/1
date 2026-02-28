@@ -187,6 +187,9 @@
       <div class="admin-nav-item js-theme-toggle">
         <span class="nav-icon">🌙</span><span>切换主题</span>
       </div>
+      <div class="admin-nav-item" style="color:#ef4444" onclick="adminLogout()">
+        <span class="nav-icon">🚪</span><span>退出登录</span>
+      </div>
     </div>
   </aside>
 
@@ -471,8 +474,10 @@ const SETTING_PAGES = {
 async function renderSettings(tab) {
   // 若 settings 还未加载，先拉一次
   if (!Object.keys(settings).length) {
-    const res = await api('admin/settings/get', { keys: '*' }, 'GET');
-    settings  = res.data ?? {};
+    const res = await api('admin/settings/get', {}, 'GET');
+    if (res.code === 0 && res.data && typeof res.data === 'object') {
+      settings = res.data;
+    }
   }
   const cfg = SETTING_PAGES[tab];
   if (!cfg) return;
@@ -548,12 +553,20 @@ async function testSmtp() {
 let selectedSkin = 'default';
 
 async function renderSkinPage() {
-  if (!Object.keys(settings).length) {
-    const res = await api('admin/settings/get', { keys: '*' }, 'GET');
-    settings = res.data ?? {};
+  try {
+    if (!Object.keys(settings).length) {
+      const res = await api('admin/settings/get', {}, 'GET');
+      if (res.code === 0 && res.data && typeof res.data === 'object') {
+        settings = res.data;
+      }
+    }
+    selectedSkin = settings.ui_skin ?? 'default';
+    _renderSkinCards();
+  } catch (e) {
+    console.error('[renderSkinPage]', e);
+    document.getElementById('adminMain').innerHTML =
+      '<div style="text-align:center;padding:3rem;color:var(--text-muted)">加载失败，请刷新重试</div>';
   }
-  selectedSkin = settings.ui_skin ?? 'default';
-  _renderSkinCards();
 }
 
 function _renderSkinCards() {
@@ -565,7 +578,7 @@ function _renderSkinCards() {
         transition:.2s;background:var(--bg-card);box-shadow:var(--shadow-sm)">
       <div style="height:72px;background:${t.preview};position:relative;display:flex;align-items:center;justify-content:center;font-size:1.8rem">
         ${t.badge}
-        ${isActive ? '<span style="position:absolute;top:5px;right:6px;background:var(--primary);color:#fff;font-size:.68rem;padding:.2rem .45rem;border-radius:999px;font-weight:600">✓ 当前</span>' : ''}
+        ${isActive ? '<span data-badge="1" style="position:absolute;top:5px;right:6px;background:var(--primary);color:#fff;font-size:.68rem;padding:.2rem .45rem;border-radius:999px;font-weight:600">✓ 当前</span>' : ''}
       </div>
       <div style="padding:.55rem .8rem">
         <div style="font-size:.875rem;font-weight:600;color:var(--text-primary)">${t.label}</div>
@@ -600,9 +613,11 @@ function selectSkin(name) {
     const isActive = card.dataset.skin === name;
     card.style.borderColor = isActive ? 'var(--primary)' : 'var(--border)';
     const prev = card.querySelector('div:first-child');
-    const badge = prev.querySelector('span');
+    // 查找专用 badge span（带 data-badge 标记，避免匹配 emoji 文字节点）
+    const badge = prev.querySelector('span[data-badge]');
     if (isActive && !badge) {
       const b = document.createElement('span');
+      b.setAttribute('data-badge', '1');
       b.style.cssText = 'position:absolute;top:5px;right:6px;background:var(--primary);color:#fff;font-size:.68rem;padding:.2rem .45rem;border-radius:999px;font-weight:600';
       b.textContent = '✓ 当前';
       prev.appendChild(b);
@@ -610,7 +625,8 @@ function selectSkin(name) {
       badge.remove();
     }
   });
-  document.getElementById('skinPreviewNote').textContent = `预览中：${UI_THEMES[name]?.label ?? name} — 点击"应用皮肤"保存`;
+  const note = document.getElementById('skinPreviewNote');
+  if (note) note.textContent = `预览中：${UI_THEMES[name]?.label ?? name} — 点击"应用皮肤"保存`;
 }
 
 async function saveSkin() {
@@ -624,6 +640,12 @@ async function saveSkin() {
 }
 
 function goApp() { location.href = '/app.html'; }
+
+async function adminLogout() {
+  if (!confirm('确定要退出登录吗？')) return;
+  await api('auth/logout', {});
+  location.href = '/auth.html';
+}
 </script>
 </body>
 </html>

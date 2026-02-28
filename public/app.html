@@ -1074,6 +1074,7 @@ function showMainMenu(btn) {
     { label: '创建群组', icon: '👥', action: createGroupModal },
     { label: '添加好友', icon: '➕', action: addFriendModal },
     ...(ME.role >= 3 ? [{ label: '管理后台', icon: '⚙️', action: () => { location.href = '/admin.html'; } }] : []),
+    { label: '退出登录', icon: '🚪', danger: true, action: doLogout },
   ];
   showContextMenu({ clientX: btn.getBoundingClientRect().right - 20, clientY: btn.getBoundingClientRect().bottom + 4 }, items);
 }
