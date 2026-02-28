@@ -364,6 +364,6 @@ chat_{群号/uid_uid}_{YYYYMMDD}.txt
 
 ## License
 
-MIT License © 极聊（商用版）开发团队
+MIT License © 极聊（商用版）开发团队清枫
 
 本项目仅供学习与商业使用，禁止用于违法违规用途。
