@@ -190,10 +190,7 @@ let unreadMap = {};      // 'g_0001' | 'p_uid' => 未读数
 
   // 2. 注入 session-id（用于 WS 认证）
   // PHP 侧在 HTML 渲染时注入，此处通过 cookie 获取
-  const sid = document.cookie.match(/(?:^|;\s*)JILIAO_SESS=([^;]+)/)?.[1]
-            ?? document.cookie.match(/(?:^|;\s*)PHPSESSID=([^;]+)/)?.[1]
-            ?? '';
-  document.getElementById('meta-session').content = sid;
+  document.getElementById('meta-session').content = meRes.data.session_id ?? '';
 
   // 3. 渲染左上角用户头像
   renderSelfAvatar();

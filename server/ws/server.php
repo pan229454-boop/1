@@ -329,7 +329,7 @@ function verifySession(string $sessionId, Database $db): int
     if (!$raw) return 0;
 
     // 解析 PHP Session 序列化格式
-    if (preg_match('/jl_user\|.*?uid[^;]+;i:(\d+);/', $raw, $m)) {
+    if (preg_match('/s:3:"uid";i:(\d+);/', $raw, $m)) {
         return (int)$m[1];
     }
     // 备用：解析整个 session

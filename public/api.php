@@ -80,7 +80,7 @@ switch ($action) {
 
     case 'auth/me':
         $user = $auth->user();
-        Response::json(['code' => 0, 'data' => $user]);
+        Response::json(['code' => 0, 'data' => array_merge($user, ['session_id' => session_id()])]);
         break;
 
     // ────────── 上传头像 ──────────────────────────────────────
