@@ -96,8 +96,10 @@
     <div id="chatContainer" style="display:none;flex-direction:column;height:100%;">
       <!-- 公告条 -->
       <div class="notice-bar hidden" id="noticeBar">
-        <span>📢</span>
         <span id="noticeContent" class="truncate flex-1">暂无公告</span>
+        <span id="noticeTime" style="font-size:.75rem;color:var(--text-muted);flex-shrink:0;white-space:nowrap;margin-left:.25rem"></span>
+        <button id="noticeEditBtn" class="btn-icon hidden" style="font-size:.8rem;padding:.15rem .3rem;flex-shrink:0" title="编辑公告" onclick="editNotice()">✏️</button>
+        <button id="noticeDeleteBtn" class="btn-icon hidden" style="font-size:.8rem;padding:.15rem .3rem;flex-shrink:0;color:#ef4444" title="删除公告" onclick="deleteNotice()">🗑️</button>
       </div>
       <!-- 置顶消息条 -->
       <div class="chat-pin-bar hidden" id="pinBar">
@@ -178,6 +180,7 @@
 let ME = null;           // 当前用户信息 { uid, nickname, avatar, role }
 let WS = null;           // JLSocket 实例
 let currentSession = null; // { type:'group'|'private', id:str, name:str }
+let currentNotice  = null; // 当前群公告数据
 let WS_URL = 'ws' + (location.protocol === 'https:' ? 's' : '') + '://' + location.host + '/ws';
 let sessions = [];       // 会话列表缓存
 let replyMsg  = null;    // 当前引用回复的消息对象
@@ -502,15 +505,31 @@ async function loadHistory(s) {
   }
 }
 
+/** 更新公告栏的编辑/删除按钮可见性（群成员加载后也会调用）*/
+function refreshNoticeActions(gid) {
+  if (!currentNotice) return;
+  const gm = (groupMembers[gid] ?? []).find(m => m.uid == ME.uid);
+  const canManage = ME.role >= 3 || (gm?.role ?? 0) >= 1 || currentNotice.created_by == ME.uid;
+  document.getElementById('noticeEditBtn')?.classList.toggle('hidden', !canManage);
+  document.getElementById('noticeDeleteBtn')?.classList.toggle('hidden', !canManage);
+}
+
 /** 加载群公告 */
 async function loadGroupNotice(gid) {
   const res = await api('notice/get', { gid }, 'GET');
   const bar = document.getElementById('noticeBar');
   if (res.code === 0 && res.data) {
+    currentNotice = res.data;
     const author = res.data.author_name ? `${res.data.author_name}: ` : '';
     document.getElementById('noticeContent').textContent = `📢 ${author}${res.data.content}`;
+    document.getElementById('noticeTime').textContent = formatTime(res.data.created_at);
+    refreshNoticeActions(gid);
     bar.classList.remove('hidden');
   } else {
+    currentNotice = null;
+    document.getElementById('noticeEditBtn')?.classList.add('hidden');
+    document.getElementById('noticeDeleteBtn')?.classList.add('hidden');
+    document.getElementById('noticeTime').textContent = '';
     bar.classList.add('hidden');
   }
 }
@@ -523,6 +542,8 @@ async function loadGroupMembers(gid) {
     // 更新头部人数
     document.getElementById('chatSubtitle').textContent =
       `群号：${gid} · ${groupMembers[gid].length} 人`;
+    // 成员加载完毕后重新评估公告操作权限
+    refreshNoticeActions(gid);
   }
 }
 
@@ -1078,6 +1099,42 @@ async function publishNotice(gid) {
       const res = await api('notice/set', { gid, content });
       toast(res.msg, res.code === 0 ? 'success' : 'error');
       if (res.code === 0) loadGroupNotice(gid);
+    }
+  });
+}
+
+function editNotice() {
+  if (!currentNotice || !currentSession) return;
+  const gid = currentSession.id;
+  showModal({
+    title: '编辑群公告',
+    body: `<div class="form-group"><textarea class="form-input" id="noticeText" rows="4" maxlength="500">${escHtml(currentNotice.content)}</textarea></div>`,
+    confirmText: '保存',
+    onConfirm: async () => {
+      const content = document.getElementById('noticeText')?.value?.trim();
+      if (!content) return;
+      const res = await api('notice/update', { notice_id: currentNotice.id, gid, content });
+      toast(res.msg, res.code === 0 ? 'success' : 'error');
+      if (res.code === 0) loadGroupNotice(gid);
+    }
+  });
+}
+
+function deleteNotice() {
+  if (!currentNotice || !currentSession) return;
+  const gid = currentSession.id;
+  showModal({
+    title: '删除公告',
+    body: '<p class="text-sm">确定要删除当前群公告吗？此操作不可恢复。</p>',
+    confirmText: '删除',
+    destructive: true,
+    onConfirm: async () => {
+      const res = await api('notice/delete', { notice_id: currentNotice.id, gid });
+      toast(res.msg, res.code === 0 ? 'success' : 'error');
+      if (res.code === 0) {
+        currentNotice = null;
+        document.getElementById('noticeBar').classList.add('hidden');
+      }
     }
   });
 }

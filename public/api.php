@@ -346,6 +346,35 @@ switch ($action) {
         Response::json(['code' => 0, 'msg' => '群公告已更新']);
         break;
 
+    case 'notice/update':
+        $me       = $auth->requireLogin();
+        $noticeId = (int)($data['notice_id'] ?? 0);
+        $gid      = $data['gid'] ?? '';
+        $content  = trim($data['content'] ?? '');
+        if (!$noticeId) Response::fail('notice_id 无效');
+        if (!$content)  Response::fail('公告内容不能为空');
+        if ($me['role'] < 3) {
+            $gm = $db->first('SELECT role FROM group_members WHERE gid=? AND uid=?', [$gid, $me['uid']]);
+            if (!$gm || (int)$gm['role'] < 1) Response::fail('仅群管理员或系统管理员可编辑公告');
+        }
+        $db->execute('UPDATE notices SET content=?, created_by=?, created_at=NOW() WHERE id=?',
+            [$content, $me['uid'], $noticeId]);
+        Response::json(['code' => 0, 'msg' => '公告已更新']);
+        break;
+
+    case 'notice/delete':
+        $me       = $auth->requireLogin();
+        $noticeId = (int)($data['notice_id'] ?? 0);
+        $gid      = $data['gid'] ?? '';
+        if (!$noticeId) Response::fail('notice_id 无效');
+        if ($me['role'] < 3) {
+            $gm = $db->first('SELECT role FROM group_members WHERE gid=? AND uid=?', [$gid, $me['uid']]);
+            if (!$gm || (int)$gm['role'] < 1) Response::fail('仅群管理员或系统管理员可删除公告');
+        }
+        $db->execute('DELETE FROM notices WHERE id=?', [$noticeId]);
+        Response::json(['code' => 0, 'msg' => '公告已删除']);
+        break;
+
     // ────────── 文件上传 ─────────────────────────────────────
 
     case 'upload/image':
