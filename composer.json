@@ -10,7 +10,7 @@
     "require-dev": {},
     "autoload": {
         "psr-4": {
-            "JiLiao\\": "server/"
+            "JiLiao\\Core\\": "server/core/"
         }
     },
     "scripts": {
