@@ -17,8 +17,12 @@
 declare(strict_types=1);
 
 // ── 引导 ──────────────────────────────────────────────────────
+// ws/server.php 位于 server/ws/，向上2级到达项目根目录
 require_once dirname(__DIR__, 2) . '/server/bootstrap.php';
-require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+// autoload 由 bootstrap 已通过 composer 加载，此处作兜底
+if (!class_exists('Workerman\Worker')) {
+    require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+}
 
 use JiLiao\Core\Auth;
 use JiLiao\Core\ChatStorage;
@@ -28,9 +32,20 @@ use Workerman\Timer;
 use Workerman\Worker;
 
 // ── 读取配置 ──────────────────────────────────────────────────
-$wsHost = \JiLiao\Core\Env::get('WS_HOST', '0.0.0.0');
-$wsPort = \JiLiao\Core\Env::get('WS_PORT', '9501');
-$wsCount = (int)\JiLiao\Core\Env::get('WS_PROCESSES', '4'); // 进程数，建议 = CPU 核数
+$wsHost  = \JiLiao\Core\Env::get('WS_HOST', '0.0.0.0');
+$wsPort  = \JiLiao\Core\Env::get('WS_PORT', '9501');
+$wsCount = (int)\JiLiao\Core\Env::get('WS_PROCESSES', '1'); // 生产可改为 CPU 核数
+
+// ── 确保存储目录存在 ─────────────────────────────────────────
+$logDir = ROOT_PATH . '/storage/logs';
+if (!is_dir($logDir)) {
+    mkdir($logDir, 0755, true);
+}
+
+// ── Workerman 全局路径配置（必须在 new Worker 之前设置）──────
+Worker::$logFile    = $logDir . '/workerman.log';
+Worker::$pidFile    = $logDir . '/workerman.pid';
+Worker::$statusFile = $logDir . '/workerman.status';
 
 // ── 创建 WebSocket Worker ─────────────────────────────────────
 $ws = new Worker("websocket://{$wsHost}:{$wsPort}");
