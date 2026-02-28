@@ -335,11 +335,12 @@ function hideLoading() {
  * @param {object} opts { title, body(html string), onConfirm, confirmText, destructive }
  * @returns {object} { close }
  */
-function showModal({ title = '', body = '', onConfirm = null, confirmText = '确定', destructive = false } = {}) {
+function showModal({ title = '', body = '', onConfirm = null, confirmText = '确定', confirmStyle = '', cancelText = '取消', onCancel = null, destructive = false } = {}) {
     const backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
 
     const dangerClass = destructive ? 'btn-danger' : 'btn-primary';
+    const extraStyle  = confirmStyle ? ` style="${confirmStyle}"` : '';
     backdrop.innerHTML = `
     <div class="modal" role="dialog" aria-modal="true">
       <div class="modal-header">
@@ -349,17 +350,17 @@ function showModal({ title = '', body = '', onConfirm = null, confirmText = '确
         </button>
       </div>
       <div class="modal-body">${body}</div>
-      ${onConfirm ? `<div class="modal-footer"><button class="btn btn-ghost btn-sm js-cancel">取消</button><button class="btn ${dangerClass} btn-sm js-confirm">${confirmText}</button></div>` : ''}
+      ${onConfirm ? `<div class="modal-footer"><button class="btn btn-ghost btn-sm js-cancel">${cancelText}</button><button class="btn ${dangerClass} btn-sm js-confirm"${extraStyle}>${confirmText}</button></div>` : ''}
     </div>`;
 
     const close = () => backdrop.remove();
-    backdrop.querySelector('.modal-close')?.addEventListener('click', close);
-    backdrop.querySelector('.js-cancel')?.addEventListener('click', close);
+    backdrop.querySelector('.modal-close')?.addEventListener('click', () => { onCancel?.(); close(); });
+    backdrop.querySelector('.js-cancel')?.addEventListener('click', () => { onCancel?.(); close(); });
     backdrop.querySelector('.js-confirm')?.addEventListener('click', async () => {
-        await onConfirm?.();
-        close();
+        const keepOpen = await onConfirm?.();
+        if (!keepOpen) close();
     });
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { onCancel?.(); close(); } });
     document.body.appendChild(backdrop);
     return { close };
 }

@@ -55,21 +55,91 @@ $auth    = new Auth();
 $db      = Database::getInstance();
 $storage = new ChatStorage();
 
+// ── 在线迁移：为旧库补充 cancel_at 字段 ──────────────────────
+try {
+    $db->execute("ALTER TABLE users ADD COLUMN `cancel_at` DATETIME NULL DEFAULT NULL COMMENT '申请注销时间'");
+} catch (\Exception $e) { /* 字段已存在，忽略 */ }
+
 switch ($action) {
 
     // ────────── 用户认证 ──────────────────────────────────────
 
     case 'auth/register':
+        // ── 检查邮箱/手机是否在注销冻结期内 ─────────────────
+        $regEmail = trim($data['email'] ?? '');
+        $regPhone = trim($data['phone'] ?? '');
+        $freezeDays = (int)($db->single("SELECT val FROM settings WHERE `key`='cancel_freeze_days'") ?? 30);
+        $recoverDays = (int)($db->single("SELECT val FROM settings WHERE `key`='cancel_recover_days'") ?? 7);
+        if ($regEmail) {
+            $frozenU = $db->first(
+                "SELECT cancel_at FROM users WHERE email=? AND email!='' AND cancel_at IS NOT NULL",
+                [$regEmail]
+            );
+            if ($frozenU) {
+                $rDeadline = strtotime($frozenU['cancel_at']) + $recoverDays * 86400;
+                $fDeadline = strtotime($frozenU['cancel_at']) + $freezeDays * 86400;
+                if (time() < $rDeadline) {
+                    Response::json(['code' => 409, 'msg' => '该邮箱已被注册']);
+                    break;
+                }
+                if (time() < $fDeadline) {
+                    $date = date('Y-m-d', $fDeadline);
+                    Response::json(['code' => 409, 'msg' => "该邮箱处于注销冷静期，解除时间：{$date}"]);
+                    break;
+                }
+                // 冻结期已过，释放该邮箱
+                $db->execute("UPDATE users SET email='' WHERE email=? AND cancel_at IS NOT NULL", [$regEmail]);
+            }
+        }
+        if ($regPhone) {
+            $frozenP = $db->first(
+                "SELECT cancel_at FROM users WHERE phone=? AND phone!='' AND cancel_at IS NOT NULL",
+                [$regPhone]
+            );
+            if ($frozenP) {
+                $rDeadline = strtotime($frozenP['cancel_at']) + $recoverDays * 86400;
+                $fDeadline = strtotime($frozenP['cancel_at']) + $freezeDays * 86400;
+                if (time() < $rDeadline) {
+                    Response::json(['code' => 409, 'msg' => '该手机号已被注册']);
+                    break;
+                }
+                if (time() < $fDeadline) {
+                    $date = date('Y-m-d', $fDeadline);
+                    Response::json(['code' => 409, 'msg' => "该手机号处于注销冷静期，解除时间：{$date}"]);
+                    break;
+                }
+                $db->execute("UPDATE users SET phone='' WHERE phone=? AND cancel_at IS NOT NULL", [$regPhone]);
+            }
+        }
         Response::json($auth->register($data));
         break;
 
     case 'auth/login':
-        $res = $auth->login(
+        $loginResult = $auth->login(
             $data['username'] ?? '',
             $data['password'] ?? '',
             $clientIp
         );
-        Response::json($res);
+        if ($loginResult['code'] === 0) {
+            $uid = $loginResult['user']['uid'];
+            $cancelAt = $db->single('SELECT cancel_at FROM users WHERE uid=?', [$uid]);
+            if ($cancelAt) {
+                $rDays    = (int)($db->single("SELECT val FROM settings WHERE `key`='cancel_recover_days'") ?? 7);
+                $rDeadline = strtotime($cancelAt) + $rDays * 86400;
+                if (time() > $rDeadline) {
+                    // 已过恢复期，彻底注销
+                    $auth->logout();
+                    Response::json(['code' => 410, 'msg' => '该账号已注销，如需使用请重新注册']);
+                    break;
+                }
+                $daysLeft = max(1, (int)ceil(($rDeadline - time()) / 86400));
+                $loginResult['cancelling']        = true;
+                $loginResult['cancel_at']         = $cancelAt;
+                $loginResult['recover_deadline']  = date('Y-m-d H:i:s', $rDeadline);
+                $loginResult['recover_days_left'] = $daysLeft;
+            }
+        }
+        Response::json($loginResult);
         break;
 
     case 'auth/logout':
@@ -84,7 +154,19 @@ switch ($action) {
             Response::json(['code' => 0, 'data' => null]);
             break;
         }
-        Response::json(['code' => 0, 'data' => array_merge($user, ['session_id' => session_id()])]);
+        $extra = ['session_id' => session_id()];
+        $meCancel = $db->single('SELECT cancel_at FROM users WHERE uid=?', [$user['uid']]);
+        if ($meCancel) {
+            $rDays = (int)($db->single("SELECT val FROM settings WHERE `key`='cancel_recover_days'") ?? 7);
+            $rDeadline = strtotime($meCancel) + $rDays * 86400;
+            if (time() < $rDeadline) {
+                $daysLeft = max(1, (int)ceil(($rDeadline - time()) / 86400));
+                $extra['cancelling']        = true;
+                $extra['recover_deadline']  = date('Y-m-d H:i:s', $rDeadline);
+                $extra['recover_days_left'] = $daysLeft;
+            }
+        }
+        Response::json(['code' => 0, 'data' => array_merge($user, $extra)]);
         break;
 
     // ────────── 上传头像 ──────────────────────────────────────
@@ -93,6 +175,38 @@ switch ($action) {
         $me = $auth->requireLogin();
         $result = handleAvatarUpload($me['uid'], $db);
         Response::json($result);
+        break;
+
+    // ────────── 账号注销 / 恢复 ──────────────────────────────
+
+    case 'user/cancel':
+        $me = $auth->requireLogin();
+        // 检查后台是否开启注销功能
+        $allowCancel = $db->single("SELECT val FROM settings WHERE `key`='allow_cancel_account'") ?? '0';
+        if ($allowCancel !== '1') Response::fail('管理员未开放账号注销功能');
+        // 验证密码
+        $pwd = $data['password'] ?? '';
+        if (!$pwd) Response::fail('请输入当前密码');
+        $userRow = $db->first('SELECT password FROM users WHERE uid=?', [$me['uid']]);
+        if (!$userRow || !password_verify($pwd, $userRow['password'])) Response::fail('密码错误');
+        // 已在注销中则不重复设置
+        $existCancel = $db->single('SELECT cancel_at FROM users WHERE uid=?', [$me['uid']]);
+        if ($existCancel) Response::json(['code' => 0, 'msg' => '账号已在注销冷静期中']);
+        $db->execute('UPDATE users SET cancel_at=NOW() WHERE uid=?', [$me['uid']]);
+        $auth->logout();
+        Response::json(['code' => 0, 'msg' => '注销申请已提交，您可在冷静期内登录恢复账号']);
+        break;
+
+    case 'user/recover':
+        $me = $auth->requireLogin();
+        $rDays   = (int)($db->single("SELECT val FROM settings WHERE `key`='cancel_recover_days'") ?? 7);
+        $cancelAt = $db->single('SELECT cancel_at FROM users WHERE uid=?', [$me['uid']]);
+        if (!$cancelAt) Response::fail('账号未在注销流程中');
+        if (time() > strtotime($cancelAt) + $rDays * 86400) {
+            Response::fail('恢复期已过，账号无法恢复');
+        }
+        $db->execute('UPDATE users SET cancel_at=NULL WHERE uid=?', [$me['uid']]);
+        Response::json(['code' => 0, 'msg' => '账号已成功恢复']);
         break;
 
     // ────────── 用户资料 ──────────────────────────────────────
@@ -409,6 +523,7 @@ switch ($action) {
             'register_require_email','register_require_phone',
             'email_verify_required','phone_verify_required',
             'register_email_verify','register_phone_verify',
+            'allow_cancel_account','cancel_recover_days','cancel_freeze_days',
         ];
         $ph  = implode(',', array_fill(0, count($pubKeys), '?'));
         $rows = $db->query("SELECT `key`,val FROM settings WHERE `key` IN ($ph)", $pubKeys);

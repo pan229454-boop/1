@@ -186,6 +186,7 @@ let sessions = [];       // 会话列表缓存
 let replyMsg  = null;    // 当前引用回复的消息对象
 let groupMembers = {};   // gid => 成员列表 (用于 @提及)
 let unreadMap = {};      // 'g_0001' | 'p_uid' => 未读数
+let appConfig = {};      // settings/public 公开配置缓存
 
 // ================================================================
 //  初始化流程
@@ -202,6 +203,7 @@ let unreadMap = {};      // 'g_0001' | 'p_uid' => 未读数
   // 拉取公开设置并应用 UI 皮肤 / 自定义 CSS
   api('settings/public', {}, 'GET').then(r => {
     if (r.code !== 0 || !r.data) return;
+    appConfig = r.data;
     if (r.data.ui_skin)    applyUITheme(r.data.ui_skin);
     if (r.data.custom_css) {
       const el = document.getElementById('app-custom-css') ?? document.createElement('style');
@@ -214,6 +216,9 @@ let unreadMap = {};      // 'g_0001' | 'p_uid' => 未读数
   // 2. 注入 session-id（用于 WS 认证）
   // PHP 侧在 HTML 渲染时注入，此处通过 cookie 获取
   document.getElementById('meta-session').content = meRes.data.session_id ?? '';
+
+  // 3. 账号注销冷静期提示横幅
+  if (ME.cancelling) showCancelBanner();
 
   // 3. 渲染左上角用户头像
   renderSelfAvatar();
@@ -909,6 +914,22 @@ async function doLogout() {
 }
 
 function showMeMenu() {
+  const canCancel = appConfig.allow_cancel_account === '1';
+  const cancelBtns = ME.cancelling
+    ? `<div style="margin-top:.875rem;padding-top:.875rem;border-top:1px solid var(--border)">
+        <button onclick="document.querySelector('.modal-backdrop')?.remove();recoverAccount()"
+          class="btn btn-primary btn-full" style="margin-bottom:.375rem">
+          🔄 立即恢复账号（还剩 ${ME.recover_days_left} 天）
+        </button>
+      </div>`
+    : (canCancel
+        ? `<div style="margin-top:.875rem;padding-top:.875rem;border-top:1px solid var(--border)">
+          <button onclick="document.querySelector('.modal-backdrop')?.remove();showCancelModal()"
+            class="btn btn-full" style="color:#ef4444;border:1px solid #ef4444;background:transparent">
+            🗑️ 申请注销账号
+          </button>
+        </div>`
+        : '');
   showModal({
     title: '我的账号',
     body: `
@@ -923,24 +944,69 @@ function showMeMenu() {
         <div>
           <div class="font-semibold text-lg">${escHtml(ME.nickname)}</div>
           <div class="text-sm text-muted">ID: ${ME.uid}</div>
+          ${ME.cancelling ? `<div style="color:#ef4444;font-size:.78rem;margin-top:.25rem">⚠️ 注销冷静期剩 ${ME.recover_days_left} 天</div>` : ''}
         </div>
+      </div>
+      ${cancelBtns}`,
+  });
+}
+
+// 注销冷静期提示横幅
+function showCancelBanner() {
+  if (document.getElementById('cancelBanner')) return;
+  const bar = document.createElement('div');
+  bar.id = 'cancelBanner';
+  bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9000;background:#ef4444;color:#fff;padding:.6rem 1.25rem;display:flex;align-items:center;gap:.75rem;font-size:.85rem;box-shadow:0 -2px 8px rgba(0,0,0,.2)';
+  bar.innerHTML = `
+    <span style="flex:1">⚠️ 您的账号处于注销冷静期，剩 <strong>${ME.recover_days_left}</strong> 天将永久注销。不想注销？</span>
+    <button onclick="recoverAccount()" style="background:#fff;color:#ef4444;border:none;border-radius:6px;padding:.3rem .8rem;cursor:pointer;font-weight:600;font-size:.82rem">恢复账号</button>
+    <button onclick="this.closest('#cancelBanner').remove()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:6px;padding:.3rem .6rem;cursor:pointer">×</button>`;
+  document.body.appendChild(bar);
+}
+
+// 注销账号对话框
+function showCancelModal() {
+  showModal({
+    title: '🗑️ 注销账号',
+    body: `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:.875rem;margin-bottom:1rem;font-size:.85rem;color:#dc2626">
+        <strong>请仔细阅读以下注销须知</strong>
+        <ul style="margin:.5rem 0 0 1rem;line-height:1.8">
+          <li>账号注销后将进入冷静期，期间可登录恢复账号</li>
+          <li>冷静期后账号将永久删除，聊天记录无法找回</li>
+          <li>注册用的邮箱/手机将进入注册冷静期，期间无法用于重新注册</li>
+        </ul>
+      </div>
+      <div class="form-group">
+        <label class="form-label">输入当前密码确认注销</label>
+        <input class="form-input" id="cancelPwd" type="password" placeholder="請输入登录密码" />
       </div>`,
-    confirmText: '退出登录',
+    confirmText: '确认注销',
     destructive: true,
     onConfirm: async () => {
-      showModal({
-        title: '确认退出',
-        body: '<p>您确定要退出登录吗？</p>',
-        confirmText: '退出登录',
-        destructive: true,
-        onConfirm: async () => {
-          await api('auth/logout', {});
-          location.href = '/auth.html';
-        }
-      });
-      return true;
+      const pwd = document.getElementById('cancelPwd')?.value;
+      if (!pwd) { toast('请输入密码', 'error'); return; }
+      const res = await api('user/cancel', { password: pwd });
+      if (res.code === 0) {
+        toast('注销申请已提交，即将退出登录', 'success', 3000);
+        setTimeout(() => location.href = '/auth.html', 2500);
+      } else {
+        toast(res.msg || '操作失败', 'error');
+      }
     }
   });
+}
+
+// 恢复注销中的账号
+async function recoverAccount() {
+  const res = await api('user/recover', {});
+  if (res.code === 0) {
+    ME.cancelling = false;
+    ME.recover_days_left = undefined;
+    document.getElementById('cancelBanner')?.remove();
+    toast('账号已成功恢复！', 'success', 3000);
+  } else {
+    toast(res.msg || '恢复失败', 'error');
+  }
 }
 
 async function uploadAvatar(input) {

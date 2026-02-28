@@ -199,7 +199,6 @@ async function doLogin(e) {
 
   btn.disabled = false; btn.textContent = '登录';
   if (res.code === 0) {
-    toast('登录成功，正在跳转…', 'success');
     // 处理记住用户名
     const username = document.getElementById('l-username').value.trim();
     if (document.getElementById('l-remember').checked) {
@@ -207,8 +206,33 @@ async function doLogin(e) {
     } else {
       localStorage.removeItem('jl_remember_user');
     }
-    showLoading('正在进入聊天室…');
-    setTimeout(() => { location.href = '/app.html'; }, 800);
+
+    if (res.cancelling) {
+      // 账号处于注销冷静期，询问是否恢复
+      showModal({
+        title: '⚠️ 账号注销冷静期',
+        body: `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:.875rem;margin-bottom:.75rem;font-size:.875rem;color:#dc2626">
+          您的账号已申请注销，冷静期还剩 <strong>${res.recover_days_left}</strong> 天（截止 ${res.recover_deadline?.slice(0,10)}）。<br>
+          冷静期过后账号将永久删除，是否立即恢复账号？
+        </div>`,
+        confirmText: '立即恢复账号',
+        cancelText: '暂不恢复，进入聊天',
+        onConfirm: async () => {
+          const rRes = await api('user/recover', {});
+          if (rRes.code === 0) {
+            toast('账号已恢复，正在进入…', 'success');
+          } else {
+            toast(rRes.msg || '恢复失败', 'error');
+          }
+          setTimeout(() => { location.href = '/app.html'; }, 800);
+        },
+        onCancel: () => { location.href = '/app.html'; }
+      });
+    } else {
+      toast('登录成功，正在跳转…', 'success');
+      showLoading('正在进入聊天室…');
+      setTimeout(() => { location.href = '/app.html'; }, 800);
+    }
   } else {
     toast(res.msg || '登录失败', 'error');
     loginVerified = false; loginSlider?.reset();
