@@ -123,8 +123,9 @@ class JLSocket {
         this.maxRetry   = 10;
         this.retryDelay = 2000;     // 重连基础间隔 ms
         this.pingTimer  = null;
-        this.pingInterval = 25000; // 心跳间隔 ms
+        this.pingInterval = 15000; // 心跳间隔 ms（移动端用短间隔保活）
         this.sessionId  = this._getSessionId();
+        this._queue     = [];       // 断线期间缓存的待发包
     }
 
     /**
@@ -185,12 +186,12 @@ class JLSocket {
     }
 
     /**
-     * 发送消息
+     * 发送消息，断线时自动入队列并触发重连（不再弹打扰用户的 Toast）
      * @param {object} packet
      */
     sendMsg(packet) {
         if (!this.connected) {
-            toast('连接已断开，正在重连…', 'warning', 2000);
+            this._queue.push(packet);
             this.connect();
             return;
         }
@@ -202,6 +203,7 @@ class JLSocket {
         switch (pkt.type) {
             case 'auth_ok':
                 this.handlers.onauth?.(pkt);
+                this._flushQueue(); // auth 成功后将断线期间排队的消息一次性发出
                 break;
             case 'pong':
                 // 心跳响应，不做处理
@@ -226,6 +228,13 @@ class JLSocket {
         }
     }
 
+    /** 将队列中的消息全部发出 */
+    _flushQueue() {
+        if (!this._queue.length) return;
+        const q = this._queue.splice(0);
+        q.forEach(pkt => this._send(pkt));
+    }
+
     /** 启动心跳定时 */
     _startPing() {
         this._stopPing();
@@ -247,6 +256,10 @@ class JLSocket {
         }
         const delay = Math.min(this.retryDelay * Math.pow(1.5, this.retryCount), 30000);
         this.retryCount++;
+        // 尝重连次数 ≥ 3 才提示用户，避免短暂断线就打扰
+        if (this.retryCount >= 3) {
+            toast(`连接中断，正在第 ${this.retryCount} 次重连…`, 'warning', 2000);
+        }
         console.info(`[JLSocket] ${delay/1000}s 后第 ${this.retryCount} 次重连…`);
         setTimeout(() => this.connect(), delay);
     }

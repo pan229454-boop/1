@@ -36,7 +36,9 @@
 
     <!-- 主题切换 -->
     <button class="nav-rail-btn js-theme-toggle" title="切换主题">🌙</button>
-    <!-- 当前用户头像头像（点击展示菜单）-->
+    <!-- 退出登录 -->
+    <button class="nav-rail-btn" title="退出登录" onclick="doLogout()">🚪</button>
+    <!-- 当前用户头像（点击展示菜单）-->
     <div class="relative">
       <div id="self-avatar-btn" title="我的账号" onclick="showMeMenu()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;overflow:hidden;margin:0 auto">
         <div class="skeleton" style="width:36px;height:36px;border-radius:50%"></div>
@@ -833,6 +835,20 @@ function renderSelfAvatar() {
 // ================================================================
 //  "我的"菜单
 // ================================================================
+async function doLogout() {
+  showModal({
+    title: '退出登录',
+    body: '<p>确定要退出登录吗？</p>',
+    confirmText: '退出',
+    destructive: true,
+    onConfirm: async () => {
+      WS?.close();
+      await api('auth/logout', {});
+      location.href = '/auth.html';
+    }
+  });
+}
+
 function showMeMenu() {
   showModal({
     title: '我的账号',

@@ -49,9 +49,12 @@
 
     /* 主内容区 */
     .admin-main {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .admin-main-content {
       flex: 1; overflow-y: auto;
       padding: 1.5rem 2rem;
-      min-width: 0;
     }
 
     /* 统计卡片 */
@@ -82,12 +85,25 @@
 
     .page-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--text-primary); }
 
-    @media (max-width: 640px) {
-      .admin-sidebar { width: 56px; }
-      .admin-nav-label, .admin-nav-item span:not(.nav-icon) { display: none; }
-      .admin-brand { font-size: 1.2rem; padding: 1.25rem .75rem; }
-      .admin-main { padding: 1rem; }
+    /* 移动端顶栏（汉堡按钮） */
+    .admin-topbar {
+      display: none;
+      align-items: center; gap: .75rem;
+      padding: .875rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-1);
+      position: sticky; top: 0; z-index: 10;
+      flex-shrink: 0;
     }
+    .admin-topbar-title { font-weight: 700; font-size: .95rem; color: var(--primary); }
+    .hamburger-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 1.4rem; line-height: 1; padding: .25rem;
+      color: var(--text-primary);
+    }
+    .admin-main { display: flex; flex-direction: column; }
+    .admin-main-content { flex: 1; overflow-y: auto; padding: 1.5rem 2rem; }
+    @media (max-width: 640px) { .admin-main-content { padding: 1rem; } }
   </style>
 </head>
 <body>
@@ -100,8 +116,11 @@
 
 <div class="admin-wrap" id="adminRoot" style="visibility:hidden">
 
+  <!-- 移动端蒙层遮罩 -->
+  <div class="admin-sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+
   <!-- 侧边栏 -->
-  <aside class="admin-sidebar">
+  <aside class="admin-sidebar" id="adminSidebar">
     <div class="admin-brand">极聊后台</div>
 
     <div class="admin-nav-group">
@@ -149,8 +168,16 @@
   </aside>
 
   <!-- 主内容 -->
-  <main class="admin-main" id="adminMain">
-    <!-- 内容由 JS 动态渲染 -->
+  <main class="admin-main" id="adminMainWrap">
+    <!-- 移动端顶栏 -->
+    <div class="admin-topbar" id="adminTopbar">
+      <button class="hamburger-btn" onclick="toggleSidebar(true)">☰</button>
+      <span class="admin-topbar-title">极聊后台</span>
+    </div>
+    <!-- 内容区 -->
+    <div id="adminMain" class="admin-main-content">
+      <!-- 内容由 JS 动态渲染 -->
+    </div>
   </main>
 
 </div>
@@ -163,6 +190,14 @@
 let ME = null;
 let settings = {};   // 缓存系统设置 key:val
 let currentPage = 'dashboard';
+
+// ================================================================
+//  侧边栏切换（移动端）
+// ================================================================
+function toggleSidebar(open) {
+  document.getElementById('adminSidebar').classList.toggle('open', open);
+  document.getElementById('sidebarOverlay').classList.toggle('open', open);
+}
 
 // ================================================================
 //  初始化
@@ -186,6 +221,8 @@ async function showPage(name) {
   currentPage = name;
   document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
   document.querySelector(`.admin-nav-item[onclick="showPage('${name}')"]`)?.classList.add('active');
+  // 手机端选完页面后自动关闭侧边栏
+  if (window.innerWidth <= 640) toggleSidebar(false);
   const main = document.getElementById('adminMain');
   main.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)"><div class="spinner" style="margin:auto"></div></div>';
   switch (name) {

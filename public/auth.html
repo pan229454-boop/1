@@ -55,6 +55,11 @@
 
       <button class="btn btn-primary btn-full" type="submit" id="btn-login">登录</button>
 
+      <div style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--text-secondary);margin-top:.25rem">
+        <input type="checkbox" id="l-remember" style="accent-color:var(--primary);cursor:pointer">
+        <label for="l-remember" style="cursor:pointer">记住用户名，下次自动填入</label>
+      </div>
+
       <div class="auth-footer">
         还没有账号？<a href="#" onclick="switchTab('register');return false">立即注册</a>
         &nbsp;|&nbsp;
@@ -193,6 +198,13 @@ async function doLogin(e) {
   btn.disabled = false; btn.textContent = '登录';
   if (res.code === 0) {
     toast('登录成功，正在跳转…', 'success');
+    // 处理记住用户名
+    const username = document.getElementById('l-username').value.trim();
+    if (document.getElementById('l-remember').checked) {
+      localStorage.setItem('jl_remember_user', username);
+    } else {
+      localStorage.removeItem('jl_remember_user');
+    }
     showLoading('正在进入聊天室…');
     setTimeout(() => { location.href = '/app.html'; }, 800);
   } else {

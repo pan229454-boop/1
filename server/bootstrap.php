@@ -18,7 +18,7 @@ define('ROOT_PATH',    dirname(__DIR__));                    // 项目根目录
 define('SERVER_PATH',  __DIR__);                             // server/ 目录
 define('STORAGE_PATH', ROOT_PATH . '/storage');              // 存储目录
 define('CHAT_PATH',    STORAGE_PATH . '/chat');              // TXT 聊天记录
-define('UPLOAD_PATH',  STORAGE_PATH . '/uploads');           // 上传文件
+define('UPLOAD_PATH',  ROOT_PATH . '/public/uploads');       // 上传文件（置于public内供Nginx直接服务）
 define('LOG_PATH',     STORAGE_PATH . '/logs');              // 日志
 
 // ── Composer 自动加载 ─────────────────────────────────────
