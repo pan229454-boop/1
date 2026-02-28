@@ -295,6 +295,14 @@ class Auth
      */
     private function joinDefaultGroup(int $uid): void
     {
+        // 确保默认群存在（防止安装脚本漏执行时静默失败）
+        $groupExists = $this->db->first("SELECT gid FROM `groups` WHERE gid='0001'", []);
+        if (!$groupExists) {
+            $this->db->execute(
+                "INSERT IGNORE INTO `groups` (gid,name,description,owner_uid,is_default,status,created_at) VALUES ('0001','综合群','所有人的默认交流群',0,1,1,NOW())",
+                []
+            );
+        }
         $exists = $this->db->first(
             'SELECT id FROM group_members WHERE gid=? AND uid=?',
             ['0001', $uid]
