@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>极聊管理后台</title>
+  <link rel="stylesheet" href="/assets/css/app.css" />
+  <style>
+    /* ── 后台私有样式 ── */
+    body { background: var(--surface-2); }
+    .admin-wrap { display: flex; height: 100vh; overflow: hidden; }
+
+    /* 侧边栏 */
+    .admin-sidebar {
+      width: 220px; flex-shrink: 0;
+      background: var(--surface-1);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    .admin-brand {
+      padding: 1.25rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--primary);
+      border-bottom: 1px solid var(--border);
+    }
+    .admin-nav-group { padding: .625rem 0; }
+    .admin-nav-label {
+      padding: .25rem 1.25rem;
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-muted);
+    }
+    .admin-nav-item {
+      display: flex; align-items: center; gap: .625rem;
+      padding: .5rem 1.25rem;
+      cursor: pointer;
+      font-size: .875rem;
+      color: var(--text-secondary);
+      transition: background .15s, color .15s;
+      border-radius: 0;
+    }
+    .admin-nav-item:hover { background: var(--surface-2); color: var(--text-primary); }
+    .admin-nav-item.active { background: rgba(79,115,248,.1); color: var(--primary); font-weight: 600; }
+    .admin-nav-item .nav-icon { font-size: 1.1em; flex-shrink: 0; }
+
+    /* 主内容区 */
+    .admin-main {
+      flex: 1; overflow-y: auto;
+      padding: 1.5rem 2rem;
+      min-width: 0;
+    }
+
+    /* 统计卡片 */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+    .stat-card {
+      background: var(--surface-1); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.5rem;
+    }
+    .stat-card .stat-val { font-size: 1.75rem; font-weight: 800; color: var(--primary); }
+    .stat-card .stat-label { font-size: .8rem; color: var(--text-muted); margin-top: .25rem; }
+
+    /* 数据表格 */
+    .data-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .data-table th, .data-table td { text-align: left; padding: .625rem .875rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .data-table th { font-weight: 600; background: var(--surface-2); color: var(--text-secondary); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+    .data-table tr:hover td { background: var(--surface-2); }
+    .data-table .actions { display: flex; gap: .375rem; }
+
+    /* 状态徽章 */
+    .status-badge { display: inline-block; padding: .15rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 600; }
+    .status-badge.ok     { background: rgba(34,197,94,.12); color: #16a34a; }
+    .status-badge.frozen { background: rgba(239,68,68,.12); color: #dc2626; }
+    .status-badge.muted  { background: rgba(245,158,11,.12); color: #d97706; }
+
+    /* 设置页 */
+    .settings-section { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .settings-section h3 { font-size: .9rem; font-weight: 700; margin-bottom: 1rem; padding-bottom: .625rem; border-bottom: 1px solid var(--border); }
+
+    .page-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--text-primary); }
+
+    @media (max-width: 640px) {
+      .admin-sidebar { width: 56px; }
+      .admin-nav-label, .admin-nav-item span:not(.nav-icon) { display: none; }
+      .admin-brand { font-size: 1.2rem; padding: 1.25rem .75rem; }
+      .admin-main { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 全屏加载 -->
+<div class="loading-overlay" id="initOverlay">
+  <div class="spinner"></div>
+  <p>权限验证中…</p>
+</div>
+
+<div class="admin-wrap" id="adminRoot" style="visibility:hidden">
+
+  <!-- 侧边栏 -->
+  <aside class="admin-sidebar">
+    <div class="admin-brand">极聊后台</div>
+
+    <div class="admin-nav-group">
+      <div class="admin-nav-label">概览</div>
+      <div class="admin-nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">📊</span><span>控制台</span>
+      </div>
+    </div>
+
+    <div class="admin-nav-group">
+      <div class="admin-nav-label">用户与群组</div>
+      <div class="admin-nav-item" onclick="showPage('users')">
+        <span class="nav-icon">👤</span><span>用户管理</span>
+      </div>
+      <div class="admin-nav-item" onclick="showPage('groups')">
+        <span class="nav-icon">👥</span><span>群组管理</span>
+      </div>
+    </div>
+
+    <div class="admin-nav-group">
+      <div class="admin-nav-label">系统配置</div>
+      <div class="admin-nav-item" onclick="showPage('settings-basic')">
+        <span class="nav-icon">⚙️</span><span>基础设置</span>
+      </div>
+      <div class="admin-nav-item" onclick="showPage('settings-smtp')">
+        <span class="nav-icon">📧</span><span>邮件配置</span>
+      </div>
+      <div class="admin-nav-item" onclick="showPage('settings-security')">
+        <span class="nav-icon">🔒</span><span>安全设置</span>
+      </div>
+      <div class="admin-nav-item" onclick="showPage('settings-theme')">
+        <span class="nav-icon">🎨</span><span>主题定制</span>
+      </div>
+    </div>
+
+    <div style="flex:1"></div>
+    <div class="admin-nav-group">
+      <div class="admin-nav-item" onclick="goApp()">
+        <span class="nav-icon">💬</span><span>返回聊天</span>
+      </div>
+      <div class="admin-nav-item js-theme-toggle">
+        <span class="nav-icon">🌙</span><span>切换主题</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 主内容 -->
+  <main class="admin-main" id="adminMain">
+    <!-- 内容由 JS 动态渲染 -->
+  </main>
+
+</div>
+
+<div id="toast-container"></div>
+<script src="/assets/js/common.js"></script>
+<script>
+'use strict';
+
+let ME = null;
+let settings = {};   // 缓存系统设置 key:val
+let currentPage = 'dashboard';
+
+// ================================================================
+//  初始化
+// ================================================================
+(async function init() {
+  const res = await api('auth/me', {}, 'GET');
+  if (!res.data || res.data.role < 3) {
+    location.href = '/auth.html';
+    return;
+  }
+  ME = res.data;
+  document.getElementById('initOverlay').style.display = 'none';
+  document.getElementById('adminRoot').style.visibility = '';
+  await showPage('dashboard');
+})();
+
+// ================================================================
+//  侧边栏导航
+// ================================================================
+async function showPage(name) {
+  currentPage = name;
+  document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.admin-nav-item[onclick="showPage('${name}')"]`)?.classList.add('active');
+  const main = document.getElementById('adminMain');
+  main.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)"><div class="spinner" style="margin:auto"></div></div>';
+  switch (name) {
+    case 'dashboard':       await renderDashboard(); break;
+    case 'users':           await renderUsers(); break;
+    case 'groups':          await renderGroups(); break;
+    case 'settings-basic':  await renderSettings('basic'); break;
+    case 'settings-smtp':   await renderSettings('smtp'); break;
+    case 'settings-security': await renderSettings('security'); break;
+    case 'settings-theme':  await renderSettings('theme'); break;
+  }
+}
+
+// ================================================================
+//  控制台
+// ================================================================
+async function renderDashboard() {
+  const res = await api('admin/stats', {}, 'GET');
+  const d   = res.data ?? { total_users: '-', online_users: '-', total_groups: '-', total_messages: '-' };
+  document.getElementById('adminMain').innerHTML = `
+    <div class="page-title">控制台概览</div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="su">${d.total_users}</div>
+        <div class="stat-label">注册用户数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="so">${d.online_users}</div>
+        <div class="stat-label">当前在线</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="sg">${d.total_groups}</div>
+        <div class="stat-label">群组总数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="sm">${d.total_messages}</div>
+        <div class="stat-label">累计消息</div>
+      </div>
+    </div>
+    <div style="margin-top:2rem;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem">
+      <h3 style="font-size:.9rem;font-weight:700;margin-bottom:.75rem">快速操作</h3>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="showPage('users')">👤 管理用户</button>
+        <button class="btn btn-secondary btn-sm" onclick="showPage('groups')">👥 管理群组</button>
+        <button class="btn btn-secondary btn-sm" onclick="showPage('settings-smtp')">📧 配置邮件</button>
+      </div>
+    </div>`;
+  // 定时刷新在线人数
+  const onlineRes = await api('user/online_count', {}, 'GET');
+  if (onlineRes.code === 0) {
+    const el = document.getElementById('so');
+    if (el) el.textContent = onlineRes.data.online;
+  }
+}
+
+// ================================================================
+//  用户管理
+// ================================================================
+let userPage = 1;
+const USER_SIZE = 20;
+
+async function renderUsers(page = 1, search = '') {
+  userPage = page;
+  const res = await api('admin/users', { page, size: USER_SIZE, q: search }, 'GET');
+  const users = res.data ?? [];
+  const total = res.total ?? 0;
+
+  document.getElementById('adminMain').innerHTML = `
+    <div class="page-title">用户管理</div>
+    <div style="display:flex;gap:.625rem;margin-bottom:1rem;align-items:center">
+      <input class="form-input" id="userSearch" placeholder="搜索昵称/UID…" style="max-width:240px" value="${escHtml(search)}" onkeydown="if(event.key==='Enter')renderUsers(1,this.value.trim())" />
+      <button class="btn btn-primary btn-sm" onclick="renderUsers(1,document.getElementById('userSearch').value.trim())">搜索</button>
+    </div>
+    <div style="overflow-x:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius)">
+      <table class="data-table">
+        <thead><tr>
+          <th>UID</th><th>昵称</th><th>用户名</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th>
+        </tr></thead>
+        <tbody id="userTbody">
+          ${users.length ? users.map(u => userRow(u)).join('') : '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">暂无用户</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.875rem;font-size:.82rem;color:var(--text-muted)">
+      <span>共 ${total} 条</span>
+      <div style="display:flex;gap:.375rem">
+        ${page > 1 ? `<button class="btn btn-secondary btn-xs" onclick="renderUsers(${page-1},'${escHtml(search)}')">上一页</button>` : ''}
+        ${total > page * USER_SIZE ? `<button class="btn btn-secondary btn-xs" onclick="renderUsers(${page+1},'${escHtml(search)}')">下一页</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function userRow(u) {
+  const roleLabel = { 1: '普通', 2: 'VIP', 3: '管理员', 9: '超管' }[u.role] ?? '普通';
+  const statusMap = { 0: ['ok','正常'], 1: ['frozen','已冻结'], 2: ['muted','已禁言'] };
+  const [cls, label] = statusMap[u.status] ?? ['ok','正常'];
+  return `<tr>
+    <td>${u.uid}</td>
+    <td>${escHtml(u.nickname)}</td>
+    <td>${escHtml(u.username)}</td>
+    <td>${roleLabel}</td>
+    <td><span class="status-badge ${cls}">${label}</span></td>
+    <td>${formatTime(u.created_at)}</td>
+    <td><div class="actions">
+      ${u.status === 0
+        ? `<button class="btn btn-sm" style="background:rgba(245,158,11,.1);color:#d97706" onclick="setUserStatus(${u.uid},2,'禁言')">禁言</button>
+           <button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#dc2626" onclick="setUserStatus(${u.uid},1,'冻结')">冻结</button>`
+        : `<button class="btn btn-sm" style="background:rgba(34,197,94,.1);color:#16a34a" onclick="setUserStatus(${u.uid},0,'解封')">解封</button>`}
+    </div></td>
+  </tr>`;
+}
+
+async function setUserStatus(uid, status, label) {
+  if (!confirm(`确定要${label}用户 UID=${uid} 吗？`)) return;
+  const res = await api('admin/user/status', { uid, status });
+  toast(res.msg, res.code === 0 ? 'success' : 'error');
+  if (res.code === 0) renderUsers(userPage);
+}
+
+// ================================================================
+//  群组管理
+// ================================================================
+async function renderGroups(search = '') {
+  const res    = await api('admin/groups', { q: search }, 'GET');
+  const groups = res.data ?? [];
+  document.getElementById('adminMain').innerHTML = `
+    <div class="page-title">群组管理</div>
+    <div style="display:flex;gap:.625rem;margin-bottom:1rem;align-items:center">
+      <input class="form-input" id="groupSearch" placeholder="搜索群名称/群号…" style="max-width:240px" value="${escHtml(search)}" onkeydown="if(event.key==='Enter')renderGroups(this.value.trim())" />
+      <button class="btn btn-primary btn-sm" onclick="renderGroups(document.getElementById('groupSearch').value.trim())">搜索</button>
+    </div>
+    <div style="overflow-x:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius)">
+      <table class="data-table">
+        <thead><tr>
+          <th>群号</th><th>群名</th><th>群主 UID</th><th>成员数</th><th>状态</th><th>创建时间</th><th>操作</th>
+        </tr></thead>
+        <tbody>
+          ${groups.length ? groups.map(g => `
+            <tr>
+              <td>${escHtml(g.gid)}</td>
+              <td>${escHtml(g.name)}</td>
+              <td>${g.owner_uid}</td>
+              <td>${g.member_count}</td>
+              <td><span class="status-badge ${g.status===0?'ok':'frozen'}">${g.status===0?'正常':'已解散'}</span></td>
+              <td>${formatTime(g.created_at)}</td>
+              <td><div class="actions">
+                <button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#dc2626" onclick="adminDissolveGroup('${escHtml(g.gid)}','${escHtml(g.name)}')">解散</button>
+              </div></td>
+            </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">暂无群组</td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function adminDissolveGroup(gid, name) {
+  if (!confirm(`确认解散群组「${name}」(${gid})？此操作不可恢复！`)) return;
+  const res = await api('group/dissolve', { gid });
+  toast(res.msg, res.code === 0 ? 'success' : 'error');
+  if (res.code === 0) renderGroups();
+}
+
+// ================================================================
+//  设置页
+// ================================================================
+const SETTING_PAGES = {
+  basic: {
+    title: '基础设置',
+    fields: [
+      { key: 'app_name',       label: '站点名称',       type: 'text', placeholder: '极聊（商用版）' },
+      { key: 'app_slogan',     label: '站点口号',       type: 'text' },
+      { key: 'index_bg',       label: '首页背景图 URL', type: 'text' },
+      { key: 'auth_bg',        label: '登录页背景图 URL', type: 'text' },
+      { key: 'register_open',  label: '开放注册',       type: 'toggle' },
+    ]
+  },
+  smtp: {
+    title: '邮件 (SMTP) 配置',
+    fields: [
+      { key: 'smtp_host',     label: 'SMTP 主机',   type: 'text', placeholder: 'smtp.example.com' },
+      { key: 'smtp_port',     label: 'SMTP 端口',   type: 'number', placeholder: '465' },
+      { key: 'smtp_user',     label: '邮箱账号',   type: 'text' },
+      { key: 'smtp_pass',     label: '邮箱密码',   type: 'password' },
+      { key: 'smtp_from',     label: '发件人名称', type: 'text', placeholder: '极聊系统' },
+      { key: 'smtp_ssl',      label: '启用 SSL',   type: 'toggle' },
+    ],
+    extra: `<div style="margin-top:1rem">
+      <button class="btn btn-secondary btn-sm" onclick="testSmtp()">📧 发送测试邮件</button>
+    </div>`
+  },
+  security: {
+    title: '安全设置',
+    fields: [
+      { key: 'captcha_enabled',         label: '登录启用滑块验证',   type: 'toggle' },
+      { key: 'email_verify_required',   label: '注册需邮箱验证',     type: 'toggle' },
+      { key: 'phone_verify_required',   label: '注册需手机验证',     type: 'toggle' },
+      { key: 'login_fail_limit',        label: '连续失败锁定次数',   type: 'number', placeholder: '5' },
+      { key: 'register_require_email',  label: '注册必填邮箱',       type: 'toggle' },
+      { key: 'register_require_phone',  label: '注册必填手机',       type: 'toggle' },
+      { key: 'max_upload_mb',           label: '最大上传大小 (MB)',  type: 'number', placeholder: '10' },
+    ]
+  },
+  theme: {
+    title: '主题定制',
+    fields: [
+      { key: 'primary_color',   label: '主色调 (CSS 颜色值)',     type: 'text', placeholder: '#4f73f8' },
+      { key: 'custom_css',      label: '自定义 CSS (高级)',       type: 'textarea', rows: 8 },
+      { key: 'custom_head_html', label: '自定义 HEAD HTML (高级)', type: 'textarea', rows: 4 },
+    ]
+  }
+};
+
+async function renderSettings(tab) {
+  // 若 settings 还未加载，先拉一次
+  if (!Object.keys(settings).length) {
+    const res = await api('admin/settings/get', { keys: '*' }, 'GET');
+    settings  = res.data ?? {};
+  }
+  const cfg = SETTING_PAGES[tab];
+  if (!cfg) return;
+
+  const fieldsHtml = cfg.fields.map(f => {
+    const val = escHtml(settings[f.key] ?? '');
+    if (f.type === 'toggle') {
+      const checked = settings[f.key] === '1' ? 'checked' : '';
+      return `<div class="form-group" style="display:flex;align-items:center;justify-content:space-between">
+        <label class="form-label" style="margin-bottom:0">${f.label}</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="s_${f.key}" name="${f.key}" ${checked} onchange="updateSettingToggle(this)" />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+      </div>`;
+    }
+    if (f.type === 'textarea') {
+      return `<div class="form-group">
+        <label class="form-label" for="s_${f.key}">${f.label}</label>
+        <textarea class="form-input" id="s_${f.key}" name="${f.key}" rows="${f.rows ?? 4}" placeholder="${f.placeholder ?? ''}">${val}</textarea>
+      </div>`;
+    }
+    return `<div class="form-group">
+      <label class="form-label" for="s_${f.key}">${f.label}</label>
+      <input class="form-input" type="${f.type}" id="s_${f.key}" name="${f.key}" value="${val}" placeholder="${escHtml(f.placeholder ?? '')}" />
+    </div>`;
+  }).join('');
+
+  document.getElementById('adminMain').innerHTML = `
+    <div class="page-title">${cfg.title}</div>
+    <form class="settings-section" id="settingsForm">
+      <h3>${cfg.title}</h3>
+      ${fieldsHtml}
+      ${cfg.extra ?? ''}
+      <div style="margin-top:1.25rem">
+        <button type="button" class="btn btn-primary" onclick="saveSettings('${tab}')">💾 保存设置</button>
+      </div>
+    </form>`;
+}
+
+/** 复选框立即更新缓存 */
+function updateSettingToggle(el) {
+  settings[el.name] = el.checked ? '1' : '0';
+}
+
+/** 保存设置 */
+async function saveSettings(tab) {
+  const cfg    = SETTING_PAGES[tab];
+  const payload = {};
+  cfg.fields.forEach(f => {
+    const el = document.getElementById(`s_${f.key}`);
+    if (!el) return;
+    payload[f.key] = f.type === 'toggle' ? (el.checked ? '1' : '0') : el.value;
+    settings[f.key] = payload[f.key]; // 更新缓存
+  });
+  const res = await api('admin/settings/save', { settings: payload });
+  toast(res.msg ?? (res.code === 0 ? '设置已保存' : '保存失败'), res.code === 0 ? 'success' : 'error');
+}
+
+/** 发送测试邮件 */
+async function testSmtp() {
+  const email = prompt('请输入接收测试邮件的邮箱地址：');
+  if (!email) return;
+  showLoading('发送中…');
+  const res = await api('admin/mail/test', { email });
+  hideLoading();
+  toast(res.msg, res.code === 0 ? 'success' : 'error');
+}
+
+function goApp() { location.href = '/app.html'; }
+</script>
+</body>
+</html>

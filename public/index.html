@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>极聊（商用版）- 轻量级商用即时通讯</title>
+  <meta name="description" content="极聊是一款基于 PHP + WebSocket 的高性能商用即时通讯系统，支持群聊、私聊、文件传输、管理后台等完整功能。" />
+  <link rel="stylesheet" href="/assets/css/app.css" />
+  <style>
+    /* 仅主页补充样式 */
+    .hero-gradient {
+      background: linear-gradient(160deg,
+        rgba(79,115,248,.15) 0%,
+        rgba(79,115,248,.04) 40%,
+        transparent 70%);
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, var(--primary), #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-screenshot {
+      max-width: 780px; width: 100%;
+      border-radius: var(--radius-lg); box-shadow: 0 24px 80px rgba(79,115,248,.25);
+      border: 1px solid var(--border); background: var(--bg-card);
+      overflow: hidden;
+    }
+    .mock-chat-preview {
+      padding: 1rem; display: flex; flex-direction: column; gap: .5rem;
+    }
+    .mock-bar {
+      height: 36px; background: var(--bg-secondary);
+      border-radius: var(--radius-sm); margin-bottom: .5rem;
+      display: flex; align-items: center; padding: 0 .75rem; gap: .5rem;
+    }
+    .mock-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+    .mock-dot.r { background: #f87171; }
+    .mock-dot.y { background: #fbbf24; }
+    .mock-dot.g { background: #34d399; }
+    .mock-msg { display: flex; gap: .5rem; }
+    .mock-msg.right { flex-direction: row-reverse; }
+    .mock-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+    .mock-bubble {
+      padding: .4rem .75rem; border-radius: 12px; font-size: .82rem;
+      max-width: 60%; background: var(--bg-secondary); color: var(--text-primary);
+    }
+    .mock-msg.right .mock-bubble { background: var(--primary); color: #fff; }
+
+    .stat-row { display: flex; gap: 3rem; flex-wrap: wrap; justify-content: center; }
+    .stat-item { text-align: center; }
+    .stat-num  { font-size: 2.5rem; font-weight: 800; color: var(--primary); line-height: 1; }
+    .stat-lbl  { font-size: .875rem; color: var(--text-muted); margin-top: .3rem; }
+
+    .tech-stack { display: flex; gap: .625rem; flex-wrap: wrap; justify-content: center; margin-top: 1.5rem; }
+    .tech-tag {
+      padding: .35rem .875rem; border-radius: var(--radius-full);
+      background: var(--bg-input); border: 1px solid var(--border);
+      font-size: .8rem; font-weight: 600; color: var(--text-secondary);
+    }
+
+    .cta-section {
+      text-align: center; padding: 6rem 2rem;
+      background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+      color: #fff;
+    }
+    .cta-section .section-title { color: #fff; }
+    .cta-section p { color: rgba(255,255,255,.8); font-size: 1.05rem; margin-top: .75rem; }
+    .cta-section .btn-ghost {
+      border-color: rgba(255,255,255,.4); color: #fff;
+    }
+    .cta-section .btn-ghost:hover { background: rgba(255,255,255,.15); border-color: white; }
+  </style>
+</head>
+<body>
+
+<!-- ── 导航栏 ──────────────────────────────────────────────────── -->
+<nav class="home-navbar" id="navbar">
+  <div class="home-logo">
+    <span class="home-logo-icon">极</span>
+    极聊（商用版）
+  </div>
+  <div class="home-nav-links">
+    <a href="#features">功能特性</a>
+    <a href="#tech">技术栈</a>
+    <a href="#deploy">快速部署</a>
+  </div>
+  <div style="display:flex;gap:.75rem;align-items:center">
+    <button class="btn-icon js-theme-toggle" title="切换主题" aria-label="切换主题">🌙</button>
+    <a href="/auth.html" class="btn btn-ghost btn-sm">登录</a>
+    <a href="/auth.html?tab=register" class="btn btn-primary btn-sm">立即体验</a>
+  </div>
+</nav>
+
+<!-- ── Hero 区域 ───────────────────────────────────────────────── -->
+<section class="home-hero hero-gradient">
+  <div>
+    <p class="section-label" style="margin-bottom:.75rem">🚀 商用级即时通讯解决方案</p>
+    <h1 class="home-hero-title">
+      <span class="gradient-text">极致轻量</span><br/>
+      即开即用的聊天系统
+    </h1>
+    <p class="home-hero-subtitle" style="margin:1.25rem auto 0">
+      基于 PHP + WebSocket 构建，支持实时群聊/私聊、文件传输、管理后台，
+      可在宝塔面板上<strong>一键部署</strong>，无需复杂运维配置。
+    </p>
+  </div>
+
+  <div class="home-hero-btns">
+    <a href="/auth.html?tab=register" class="btn btn-primary btn-lg">
+      ✨ 立即体验
+    </a>
+    <a href="/install/" class="btn btn-ghost btn-lg">
+      📦 开始安装
+    </a>
+  </div>
+
+  <!-- 模拟聊天截图 -->
+  <div class="hero-screenshot">
+    <div class="mock-bar">
+      <span class="mock-dot r"></span>
+      <span class="mock-dot y"></span>
+      <span class="mock-dot g"></span>
+      <span style="margin-left:.5rem;font-size:.78rem;color:var(--text-muted)">综合群 · 在线 128 人</span>
+    </div>
+    <div class="mock-chat-preview">
+      <div class="mock-msg">
+        <div class="mock-avatar" style="background:#22c55e"></div>
+        <div>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">小明 · 群主</div>
+          <div class="mock-bubble">欢迎加入极聊！这里是综合群 👋</div>
+        </div>
+      </div>
+      <div class="mock-msg">
+        <div class="mock-avatar" style="background:#f97316"></div>
+        <div>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">小红</div>
+          <div class="mock-bubble">哇，界面很好看！支持发图片吗？📷</div>
+        </div>
+      </div>
+      <div class="mock-msg right">
+        <div class="mock-avatar" style="background:#4f73f8"></div>
+        <div style="align-items:flex-end;display:flex;flex-direction:column;gap:.2rem">
+          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem;text-align:right">我</div>
+          <div class="mock-bubble">当然！还支持 @提及、引用回复和搜索历史 😄</div>
+        </div>
+      </div>
+      <div class="mock-msg">
+        <div class="mock-avatar" style="background:#a855f7"></div>
+        <div>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">管理员 · <span style="color:var(--primary)">管理员</span></div>
+          <div class="mock-bubble">📢 群公告：请文明交流，祝大家使用愉快！</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据统计 -->
+  <div class="stat-row">
+    <div class="stat-item"><div class="stat-num">99999</div><div class="stat-lbl">支持账号上限</div></div>
+    <div class="stat-item"><div class="stat-num">9999</div><div class="stat-lbl">群组上限</div></div>
+    <div class="stat-item"><div class="stat-num">&lt;20ms</div><div class="stat-lbl">WebSocket 延迟</div></div>
+    <div class="stat-item"><div class="stat-num">MIT</div><div class="stat-lbl">开源协议</div></div>
+  </div>
+</section>
+
+<!-- ── 功能特性 ─────────────────────────────────────────────────── -->
+<section class="home-features" id="features">
+  <div class="text-center">
+    <p class="section-label">核心功能</p>
+    <h2 class="section-title">开箱即用的全栈功能</h2>
+    <p style="color:var(--text-secondary);margin-top:.75rem;font-size:.95rem">
+      覆盖即时通讯的所有核心场景，从群聊到私聊，从文件传输到管理后台
+    </p>
+  </div>
+
+  <div class="home-features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>WebSocket 实时通信</h3>
+      <p>基于 Workerman 实现全双工通信，消息毫秒级推送，支持心跳保活与断线自动重连。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💬</div>
+      <h3>群聊 & 私聊</h3>
+      <p>支持最多 9999 个群组，每群多达 500 人；私聊支持多设备消息同步，历史记录自动加载。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📁</div>
+      <h3>TXT 持久化存储</h3>
+      <p>消息以 JSON 行格式写入 TXT 文件，按日期自动分片归档，支持关键词全文检索。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🛡️</div>
+      <h3>完善安全防护</h3>
+      <p>IP 限流、登录锁定、滑块验证码、CSRF 防护、文件类型白名单，多层防御体系。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">👑</div>
+      <h3>群组精细化权限</h3>
+      <p>群主/管理员/成员三级角色；禁言、踢人、黑名单、加群审批；自定义群头衔。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎨</div>
+      <h3>管理后台全定制</h3>
+      <p>独立管理后台，可配置 SMTP 邮件、手机号验证、全站背景图/视频、自定义 CSS。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📱</div>
+      <h3>全端响应式适配</h3>
+      <p>移动端长按呼出操作菜单，支持手势返回；PC/平板/手机三端布局自动切换。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔍</div>
+      <h3>消息搜索 & 精华</h3>
+      <p>在会话内按关键词搜索最近 30 天历史消息；支持消息置顶与精华标记。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🚀</div>
+      <h3>宝塔一键部署</h3>
+      <p>提供图文部署手册，从建站到 WebSocket 服务守护，每一步均有截图级说明。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── 技术栈 ────────────────────────────────────────────────────── -->
+<section id="tech" style="padding:4rem 2rem;background:var(--bg-secondary)">
+  <div class="text-center" style="max-width:700px;margin:0 auto">
+    <p class="section-label">技术栈</p>
+    <h2 class="section-title">现代可靠的技术选型</h2>
+    <p style="color:var(--text-secondary);margin-top:.75rem">
+      无重型框架依赖，代码清晰可读，适合二次开发与定制化部署。
+    </p>
+    <div class="tech-stack">
+      <span class="tech-tag">PHP 7.4+</span>
+      <span class="tech-tag">MySQL 5.7+</span>
+      <span class="tech-tag">Workerman 4.x</span>
+      <span class="tech-tag">WebSocket</span>
+      <span class="tech-tag">HTML5 / CSS3</span>
+      <span class="tech-tag">Vanilla JS</span>
+      <span class="tech-tag">Nginx</span>
+      <span class="tech-tag">Supervisor</span>
+      <span class="tech-tag">宝塔面板</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── 快速部署 ────────────────────────────────────────────────── -->
+<section id="deploy" style="padding:5rem 2rem;max-width:900px;margin:0 auto">
+  <div class="text-center">
+    <p class="section-label">快速上手</p>
+    <h2 class="section-title">3 步完成部署</h2>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;margin-top:3rem">
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:1rem">📦</div>
+      <h3 class="font-bold" style="margin-bottom:.5rem">1. 上传源码</h3>
+      <p class="text-sm" style="color:var(--text-secondary)">通过宝塔文件管理或 SFTP 上传源码包，在网站根目录解压</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:1rem">🔧</div>
+      <h3 class="font-bold" style="margin-bottom:.5rem">2. 访问安装向导</h3>
+      <p class="text-sm" style="color:var(--text-secondary)">访问 <code style="background:var(--bg-input);padding:.15rem .4rem;border-radius:4px">/install/</code> 按提示完成数据库配置</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:1rem">🚀</div>
+      <h3 class="font-bold" style="margin-bottom:.5rem">3. 启动 WebSocket</h3>
+      <p class="text-sm" style="color:var(--text-secondary)">通过 Supervisor 守护 WS 进程，Nginx 配置反向代理即可</p>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:2.5rem">
+    <a href="/install/" class="btn btn-primary btn-lg">开始安装向导 →</a>
+    <a href="#" class="btn btn-ghost btn-lg" style="margin-left:1rem" onclick="document.querySelector('#readme-section')?.scrollIntoView()">查看部署手册</a>
+  </div>
+</section>
+
+<!-- ── CTA ───────────────────────────────────────────────────────── -->
+<section class="cta-section">
+  <p class="section-label" style="color:rgba(255,255,255,.7)">马上开始</p>
+  <h2 class="section-title">准备好体验极聊了吗？</h2>
+  <p>完全免费开源，无需许可证，立即部署属于你的即时通讯系统</p>
+  <div style="display:flex;gap:1rem;justify-content:center;margin-top:2rem;flex-wrap:wrap">
+    <a href="/auth.html?tab=register" class="btn btn-primary btn-lg" style="background:white;color:var(--primary)">立即注册体验</a>
+    <a href="/install/" class="btn btn-ghost btn-lg">部署私有版本</a>
+  </div>
+</section>
+
+<!-- ── 页脚 ─────────────────────────────────────────────────────── -->
+<footer class="home-footer">
+  <p>© 2024–2026 极聊（商用版）· 基于 PHP + WebSocket · 宝塔面板友好部署</p>
+  <p style="margin-top:.5rem">
+    <a href="/auth.html">登录</a> &nbsp;·&nbsp;
+    <a href="/auth.html?tab=register">注册</a> &nbsp;·&nbsp;
+    <a href="/install/">安装</a> &nbsp;·&nbsp;
+    <a href="/admin.html">管理后台</a>
+  </p>
+</footer>
+
+<div id="toast-container"></div>
+<script src="/assets/js/common.js"></script>
+<script>
+  // 导航栏滚动阴影
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').style.boxShadow =
+      window.scrollY > 10 ? 'var(--shadow-md)' : 'none';
+  });
+</script>
+</body>
+</html>

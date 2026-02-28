@@ -1,0 +1,26 @@
+{
+    "name": "jiliao/jiliao",
+    "description": "极聊（商用版）- 轻量级商用即时通讯系统",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=7.4",
+        "workerman/workerman": "^4.1"
+    },
+    "require-dev": {},
+    "autoload": {
+        "psr-4": {
+            "JiLiao\\": "server/"
+        }
+    },
+    "scripts": {
+        "ws:start":   "php server/ws/server.php start -d",
+        "ws:stop":    "php server/ws/server.php stop",
+        "ws:restart": "php server/ws/server.php restart",
+        "ws:status":  "php server/ws/server.php status"
+    },
+    "config": {
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable"
+}

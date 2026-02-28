@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>极聊（商用版）</title>
+  <!-- session-id 由服务端渲染注入 -->
+  <meta name="session-id" content="" id="meta-session" />
+  <link rel="stylesheet" href="/assets/css/app.css" />
+</head>
+<body>
+
+<!-- 全屏加载遮罩（等待 WS 认证完成）-->
+<div class="loading-overlay" id="initOverlay">
+  <div class="spinner"></div>
+  <p>正在连接服务器…</p>
+</div>
+
+<div class="app-layout" id="appRoot" style="visibility:hidden">
+
+  <!-- ── 左侧导航栏 ─────────────────────────────────────────── -->
+  <aside class="nav-rail">
+    <div class="nav-rail-logo">极</div>
+
+    <!-- 会话 -->
+    <button class="nav-rail-btn active" id="nav-chat" title="聊天" onclick="switchPanel('chat')">
+      💬
+      <span class="badge" id="total-unread" style="display:none">0</span>
+    </button>
+    <!-- 通讯录 -->
+    <button class="nav-rail-btn" id="nav-contact" title="通讯录" onclick="switchPanel('contact')">👥</button>
+    <!-- 搜索 -->
+    <button class="nav-rail-btn" id="nav-search" title="搜索" onclick="openGlobalSearch()">🔍</button>
+
+    <span class="nav-rail-spacer"></span>
+
+    <!-- 主题切换 -->
+    <button class="nav-rail-btn js-theme-toggle" title="切换主题">🌙</button>
+    <!-- 当前用户头像头像（点击展示菜单）-->
+    <div class="relative">
+      <div id="self-avatar-btn" title="我的账号" onclick="showMeMenu()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;overflow:hidden;margin:0 auto">
+        <div class="skeleton" style="width:36px;height:36px;border-radius:50%"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── 会话列表面板 ───────────────────────────────────────── -->
+  <div class="session-panel" id="panel-chat">
+    <div class="session-panel-header">
+      <span class="session-panel-title">消息</span>
+      <div style="display:flex;gap:.25rem">
+        <button class="btn-icon" title="新建群组" onclick="createGroupModal()">+</button>
+        <button class="btn-icon" id="menuBtn" onclick="showMainMenu(this)">☰</button>
+      </div>
+    </div>
+    <!-- 在线人数 -->
+    <div style="padding:.5rem 1rem;background:rgba(79,115,248,.06);font-size:.78rem;color:var(--text-secondary);display:flex;align-items:center;gap:.5rem;">
+      <span style="width:8px;height:8px;background:#22c55e;border-radius:50%;display:inline-block"></span>
+      应到 <strong id="totalCount">-</strong> 人 · 在线 <strong id="onlineCount">-</strong> 人
+    </div>
+    <!-- 搜索框 -->
+    <div class="session-search">
+      <input type="search" id="sessionSearch" placeholder="搜索会话…" oninput="filterSessions(this.value)" />
+    </div>
+    <!-- 会话列表 -->
+    <div class="session-list" id="sessionList"></div>
+  </div>
+
+  <!-- 通讯录面板 -->
+  <div class="session-panel hidden" id="panel-contact">
+    <div class="session-panel-header">
+      <span class="session-panel-title">通讯录</span>
+      <button class="btn-icon" onclick="addFriendModal()" title="添加好友">+</button>
+    </div>
+    <div style="padding:.75rem 1rem;font-size:.8rem;font-weight:700;color:var(--text-muted)">好友列表</div>
+    <div class="session-list" id="friendList"></div>
+  </div>
+
+  <!-- ── 聊天区域 ───────────────────────────────────────────── -->
+  <main class="chat-area" id="chatArea">
+    <!-- 默认空态 -->
+    <div id="chatEmpty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1rem;color:var(--text-muted)">
+      <div style="font-size:4rem">💬</div>
+      <p style="font-size:1rem">选择一个会话开始聊天</p>
+    </div>
+
+    <!-- 聊天容器（选中会话后显示）-->
+    <div id="chatContainer" style="display:none;flex-direction:column;height:100%;">
+      <!-- 公告条 -->
+      <div class="notice-bar hidden" id="noticeBar">
+        <span>📢</span>
+        <span id="noticeContent" class="truncate flex-1">暂无公告</span>
+      </div>
+      <!-- 置顶消息条 -->
+      <div class="chat-pin-bar hidden" id="pinBar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15l-9-9M3 21l4-4m0 0l2-2m-2 2l-2-2m9-4l-7 7m3-7l7-7"/></svg>
+        <span id="pinContent" class="truncate flex-1">置顶消息加载中…</span>
+      </div>
+      <!-- 聊天头部 -->
+      <div class="chat-header">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <!-- 移动端返回按钮 -->
+          <button class="btn-icon" id="backBtn" onclick="closeChat()" style="display:none">←</button>
+          <div class="chat-header-info" id="chatHeaderInfo">
+            <div class="skeleton avatar-sm" style="border-radius:50%"></div>
+            <div>
+              <div class="skeleton" style="width:80px;height:14px;margin-bottom:4px"></div>
+              <div class="skeleton" style="width:50px;height:11px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-header-actions">
+          <button class="btn-icon" title="搜索消息" onclick="openMsgSearch()">🔍</button>
+          <button class="btn-icon" title="成员列表" onclick="toggleInfoPanel()">👥</button>
+          <button class="btn-icon" id="chatMenuBtn" title="更多" onclick="showChatMenu()">⋮</button>
+        </div>
+      </div>
+
+      <!-- 消息列表 -->
+      <div class="chat-messages" id="chatMessages"></div>
+
+      <!-- 输入区 -->
+      <div class="chat-input-area">
+        <!-- 引用回复预览条 -->
+        <div class="reply-bar hidden" id="replyBar">
+          <span class="truncate flex-1" id="replyPreview">回复内容</span>
+          <button onclick="clearReply()" style="background:none;border:none;cursor:pointer;color:var(--text-muted)">✕</button>
+        </div>
+        <!-- 工具栏 -->
+        <div class="chat-input-toolbar">
+          <label class="btn-icon" title="发送图片" style="cursor:pointer">
+            📷 <input type="file" accept="image/*" style="display:none" id="imgUpload" onchange="sendImage(this)" />
+          </label>
+          <button class="btn-icon" title="表情" onclick="toast('表情功能即将上线','info')">😊</button>
+        </div>
+        <!-- 输入框 + 发送 -->
+        <div class="chat-input-row relative">
+          <!-- @提及下拉 -->
+          <div class="at-suggest hidden" id="atSuggest"></div>
+          <textarea
+            class="chat-input-box"
+            id="chatInput"
+            placeholder="输入消息… Enter 发送，Shift+Enter 换行"
+            rows="1"
+            maxlength="2000"
+            onkeydown="handleInputKey(event)"
+            oninput="handleInputChange(this)"
+          ></textarea>
+          <button class="btn btn-primary btn-sm" onclick="sendMessage()" id="sendBtn">发送</button>
+        </div>
+      </div>
+    </div><!-- /chatContainer -->
+  </main><!-- /chatArea -->
+
+  <!-- ── 右侧信息面板 ─────────────────────────────────────────── -->
+  <aside class="info-panel" id="infoPanel" style="display:none">
+    <div id="infoPanelContent"></div>
+  </aside>
+
+</div><!-- /appRoot -->
+
+<div id="toast-container"></div>
+<script src="/assets/js/common.js"></script>
+<script>
+'use strict';
+
+// ================================================================
+//  全局状态
+// ================================================================
+let ME = null;           // 当前用户信息 { uid, nickname, avatar, role }
+let WS = null;           // JLSocket 实例
+let currentSession = null; // { type:'group'|'private', id:str, name:str }
+let WS_URL = 'ws' + (location.protocol === 'https:' ? 's' : '') + '://' + location.host + '/ws';
+let sessions = [];       // 会话列表缓存
+let replyMsg  = null;    // 当前引用回复的消息对象
+let groupMembers = {};   // gid => 成员列表 (用于 @提及)
+let unreadMap = {};      // 'g_0001' | 'p_uid' => 未读数
+
+// ================================================================
+//  初始化流程
+// ================================================================
+(async function init() {
+  // 1. 获取当前用户信息（检测登录状态）
+  const meRes = await api('auth/me', {}, 'GET');
+  if (!meRes.data) {
+    location.href = '/auth.html';
+    return;
+  }
+  ME = meRes.data;
+
+  // 2. 注入 session-id（用于 WS 认证）
+  // PHP 侧在 HTML 渲染时注入，此处通过 cookie 获取
+  const sid = document.cookie.match(/(?:^|;\s*)JILIAO_SESS=([^;]+)/)?.[1]
+            ?? document.cookie.match(/(?:^|;\s*)PHPSESSID=([^;]+)/)?.[1]
+            ?? '';
+  document.getElementById('meta-session').content = sid;
+
+  // 3. 渲染左上角用户头像
+  renderSelfAvatar();
+
+  // 4. 加载在线人数
+  loadOnlineCount();
+  setInterval(loadOnlineCount, 30000);
+
+  // 5. 连接 WebSocket
+  connectWS();
+
+  // 6. 加载会话列表（群 + 好友）
+  await loadSessions();
+
+  // 7. 隐藏加载层
+  document.getElementById('initOverlay').style.display = 'none';
+  document.getElementById('appRoot').style.visibility = '';
+
+  // 8. 手机端背景适配
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) loadOnlineCount();
+  });
+
+  // 9. 移动端返回按钮
+  if (window.innerWidth <= 768) {
+    document.getElementById('backBtn').style.display = '';
+  }
+})();
+
+// ================================================================
+//  WebSocket 连接
+// ================================================================
+function connectWS() {
+  WS = new JLSocket(WS_URL, {
+    onauth: (pkt) => {
+      console.info('[App] WS 认证成功, uid=', pkt.uid);
+    },
+    onmsg: (pkt) => handleWsMessage(pkt),
+    onclose: () => {
+      // 短暂显示断线提示（JLSocket 自动重连中）
+      toast('连接断开，正在重连…', 'warning', 2500);
+    }
+  });
+  WS.connect();
+}
+
+// ================================================================
+//  处理 WS 收到的消息 packet
+// ================================================================
+function handleWsMessage(pkt) {
+  switch (pkt.type) {
+    case 'msg':
+      onReceiveMsg(pkt);
+      break;
+    case 'recall':
+      onRecallMsg(pkt);
+      break;
+    case 'unread':
+      onUnreadUpdate(pkt);
+      break;
+  }
+}
+
+/** 收到新消息 */
+function onReceiveMsg(pkt) {
+  const sessionKey = pkt.chat_type === 2 ? `g_${pkt.to_id}` : `p_${pkt.from_uid == ME.uid ? pkt.to_id : pkt.from_uid}`;
+
+  // 是否在当前会话
+  const isCurrent = currentSession && (
+    (pkt.chat_type === 2 && currentSession.type === 'group'   && currentSession.id === pkt.to_id) ||
+    (pkt.chat_type === 1 && currentSession.type === 'private' && currentSession.id == (pkt.from_uid == ME.uid ? pkt.to_id : pkt.from_uid))
+  );
+
+  if (isCurrent) {
+    const atBottom = isAtBottom(document.getElementById('chatMessages'));
+    appendMessage(pkt);
+    if (atBottom) scrollToBottom(document.getElementById('chatMessages'));
+    // 标记已读
+    WS.sendMsg({ type: 'read', chat_type: pkt.chat_type, from_id: pkt.chat_type === 2 ? pkt.to_id : String(pkt.from_uid) });
+  } else {
+    // 未读+1
+    unreadMap[sessionKey] = (unreadMap[sessionKey] ?? 0) + 1;
+    updateSessionPreview(sessionKey, pkt);
+    renderUnreadBadges();
+  }
+}
+
+/** 撤回消息 */
+function onRecallMsg(pkt) {
+  const el = document.querySelector(`[data-msg-id="${pkt.msg_id}"]`);
+  if (el) {
+    const bubble = el.querySelector('.msg-bubble');
+    if (bubble) bubble.textContent = '消息已被撤回';
+    bubble?.classList.add('text-muted');
+  }
+}
+
+/** 更新未读 */
+function onUnreadUpdate(pkt) {
+  (pkt.data ?? []).forEach(u => {
+    const k = u.chat_type === 2 ? `g_${u.from_id}` : `p_${u.from_id}`;
+    unreadMap[k] = u.cnt;
+  });
+  renderUnreadBadges();
+}
+
+// ================================================================
+//  会话列表
+// ================================================================
+async function loadSessions() {
+  const [groupRes, friendRes] = await Promise.all([
+    api('group/list', {}, 'GET'),
+    api('friend/list', {}, 'GET'),
+  ]);
+
+  sessions = [];
+
+  // 群组
+  (groupRes.data ?? []).forEach(g => {
+    sessions.push({ type: 'group', id: g.gid, name: g.name, avatar: g.avatar, is_default: g.is_default, role: g.role });
+  });
+  // 好友
+  (friendRes.data ?? []).forEach(f => {
+    sessions.push({ type: 'private', id: String(f.uid), name: f.nickname, avatar: f.avatar, online: f.is_online });
+  });
+
+  renderSessionList(sessions);
+  renderFriendList(friendRes.data ?? []);
+}
+
+/** 渲染会话列表 */
+function renderSessionList(list) {
+  const container = document.getElementById('sessionList');
+  container.innerHTML = '';
+  list.forEach(s => {
+    const key  = s.type === 'group' ? `g_${s.id}` : `p_${s.id}`;
+    const unread = unreadMap[key] ?? 0;
+    const div  = document.createElement('div');
+    div.className = 'session-item';
+    div.dataset.key = key;
+    div.onclick = () => openSession(s);
+    div.innerHTML = `
+      <div class="relative flex-shrink-0">
+        ${s.avatar
+          ? `<img src="${escHtml(s.avatar)}" class="avatar avatar-md" alt="${escHtml(s.name)}">`
+          : avatarHtml(s.name, 'avatar-md')}
+        ${s.type === 'private' && s.online ? '<span class="online-dot"></span>' : ''}
+        ${unread > 0 ? `<span class="badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+      </div>
+      <div class="session-info">
+        <div class="session-name truncate">${escHtml(s.name)}${s.type === 'group' ? ` <span class="text-xs text-muted">#${s.id}</span>` : ''}</div>
+        <div class="session-preview" id="preview-${key}">点击开始聊天</div>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+/** 渲染好友列表 */
+function renderFriendList(friends) {
+  const container = document.getElementById('friendList');
+  container.innerHTML = '';
+  if (!friends.length) {
+    container.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:.85rem">暂无好友，去群里 @ 一下吧</div>';
+    return;
+  }
+  friends.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'session-item';
+    div.onclick = () => openSession({ type: 'private', id: String(f.uid), name: f.nickname, avatar: f.avatar });
+    div.innerHTML = `
+      <div class="relative flex-shrink-0">
+        ${f.avatar ? `<img src="${escHtml(f.avatar)}" class="avatar avatar-md">` : avatarHtml(f.nickname, 'avatar-md')}
+        ${f.is_online ? '<span class="online-dot"></span>' : ''}
+      </div>
+      <div class="session-info">
+        <div class="session-name">${escHtml(f.nickname)}</div>
+        <div class="session-preview text-muted">${f.is_online ? '在线' : '离线'}</div>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+/** 更新会话预览文字 */
+function updateSessionPreview(key, msg) {
+  const el = document.getElementById(`preview-${key}`);
+  if (el) {
+    const prefix = msg.from_uid == ME.uid ? '我: ' : '';
+    const text   = msg.msg_type === 2 ? '[图片]' : (msg.content ?? '').slice(0, 30);
+    el.textContent = `${prefix}${text}`;
+  }
+}
+
+/** 过滤会话 */
+function filterSessions(q) {
+  if (!q) { renderSessionList(sessions); return; }
+  const filtered = sessions.filter(s => s.name.toLowerCase().includes(q.toLowerCase()) || s.id.includes(q));
+  renderSessionList(filtered);
+}
+
+/** 渲染未读徽章 */
+function renderUnreadBadges() {
+  const total = Object.values(unreadMap).reduce((a,b) => a + b, 0);
+  const badge = document.getElementById('total-unread');
+  badge.textContent = total > 99 ? '99+' : String(total);
+  badge.style.display = total > 0 ? '' : 'none';
+
+  // 各会话红点
+  document.querySelectorAll('.session-item').forEach(item => {
+    const key    = item.dataset.key;
+    const unread = unreadMap[key] ?? 0;
+    const dot    = item.querySelector('.badge');
+    if (dot) { dot.textContent = unread > 99 ? '99+' : unread; dot.style.display = unread > 0 ? '' : 'none'; }
+  });
+}
+
+// ================================================================
+//  打开会话
+// ================================================================
+async function openSession(s) {
+  currentSession = s;
+  document.getElementById('chatEmpty').style.display = 'none';
+  const cc = document.getElementById('chatContainer');
+  cc.style.display = 'flex';
+
+  // 高亮选中
+  document.querySelectorAll('.session-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.key === (s.type === 'group' ? `g_${s.id}` : `p_${s.id}`));
+  });
+
+  // 清除该会话未读
+  const key = s.type === 'group' ? `g_${s.id}` : `p_${s.id}`;
+  delete unreadMap[key];
+  renderUnreadBadges();
+  WS.sendMsg({ type: 'read', chat_type: s.type === 'group' ? 2 : 1, from_id: s.id });
+
+  // 更新头部
+  renderChatHeader(s);
+
+  // 加载历史消息
+  await loadHistory(s);
+
+  // 群：加载公告、成员
+  if (s.type === 'group') {
+    loadGroupNotice(s.id);
+    loadGroupMembers(s.id);
+  }
+
+  // 手机端：隐藏侧边栏
+  if (window.innerWidth <= 768) {
+    document.getElementById('panel-chat').classList.remove('open');
+  }
+
+  document.getElementById('chatInput').focus();
+}
+
+/** 渲染聊天头部 */
+function renderChatHeader(s) {
+  document.getElementById('chatHeaderInfo').innerHTML = `
+    ${s.avatar ? `<img src="${escHtml(s.avatar)}" class="avatar avatar-sm">` : avatarHtml(s.name, 'avatar-sm')}
+    <div>
+      <div class="chat-header-name">${escHtml(s.name)}</div>
+      <div class="chat-header-sub" id="chatSubtitle">${s.type === 'group' ? `群号：${s.id}` : (s.online ? '在线' : '离线')}</div>
+    </div>`;
+}
+
+/** 加载历史消息 */
+async function loadHistory(s) {
+  const msgs = document.getElementById('chatMessages');
+  msgs.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:.82rem;padding:1rem">加载中…</div>';
+
+  const res = await api('msg/history', {
+    chat_type: s.type === 'group' ? 2 : 1,
+    to_id:     s.id,
+    limit:     50,
+  });
+
+  msgs.innerHTML = '';
+  if (res.code === 0 && res.data?.length) {
+    res.data.forEach(m => appendMessage({
+      msg_id: m.id, chat_type: s.type === 'group' ? 2 : 1,
+      from_uid: m.from, from_nickname: m.from, // 需 lookup，简化处理
+      msg_type: m.type, content: m.content, reply_msg_id: m.reply, ts: m.ts,
+    }));
+    scrollToBottom(msgs, false);
+  } else {
+    msgs.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:.82rem;padding:2rem">暂无消息记录</div>';
+  }
+}
+
+/** 加载群公告 */
+async function loadGroupNotice(gid) {
+  const res = await api('notice/get', { gid }, 'GET');
+  const bar = document.getElementById('noticeBar');
+  if (res.code === 0 && res.data) {
+    document.getElementById('noticeContent').textContent = res.data.content;
+    bar.classList.remove('hidden');
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+/** 加载群成员（用于 @提及）*/
+async function loadGroupMembers(gid) {
+  const res = await api('group/info', { gid }, 'GET');
+  if (res.code === 0) {
+    groupMembers[gid] = res.data.members ?? [];
+    // 更新头部人数
+    document.getElementById('chatSubtitle').textContent =
+      `群号：${gid} · ${groupMembers[gid].length} 人`;
+  }
+}
+
+// ================================================================
+//  渲染消息气泡
+// ================================================================
+function appendMessage(pkt) {
+  const msgs = document.getElementById('chatMessages');
+  const isSelf = pkt.from_uid == ME.uid;
+
+  const div = document.createElement('div');
+  div.className = `msg-group ${isSelf ? 'self' : 'other'}`;
+  div.dataset.msgId = pkt.msg_id;
+
+  let bubbleContent = '';
+  if (pkt.msg_type === 2) {
+    bubbleContent = `<img src="${escHtml(pkt.content)}" class="js-lightbox" alt="图片" loading="lazy">`;
+  } else {
+    bubbleContent = parseContent(pkt.content ?? '');
+  }
+
+  // 引用回复
+  let replyHtml = '';
+  if (pkt.reply_msg_id) {
+    replyHtml = `<div class="msg-reply-preview">↩ 引用消息 #${escHtml(String(pkt.reply_msg_id).slice(0,8))}</div>`;
+  }
+
+  const nickHtml = !isSelf
+    ? `<div class="msg-sender">${escHtml(String(pkt.from_nickname ?? pkt.from_uid))}${pkt.from_title ? ` <span class="msg-title">[${escHtml(pkt.from_title)}]</span>` : ''}</div>`
+    : '';
+
+  div.innerHTML = `
+    <div class="relative flex-shrink-0" style="cursor:pointer" onclick="clickAvatar(${pkt.from_uid})">
+      ${avatarHtml(String(pkt.from_nickname ?? pkt.from_uid), 'avatar-sm')}
+    </div>
+    <div class="msg-content-wrap flex-1">
+      ${nickHtml}
+      ${replyHtml}
+      <div class="msg-bubble">${bubbleContent}</div>
+      <div class="msg-time">${formatTime(pkt.ts)}</div>
+    </div>`;
+
+  // 长按 / 右键上下文菜单
+  div.addEventListener('contextmenu', (e) => { e.preventDefault(); showMsgMenu(e, pkt); });
+  div.addEventListener('touchstart', makeLongPressHandler((e) => showMsgMenu(e, pkt)), { passive: true });
+
+  msgs.appendChild(div);
+}
+
+// ================================================================
+//  发送消息
+// ================================================================
+async function sendMessage() {
+  if (!currentSession) return;
+  const input   = document.getElementById('chatInput');
+  const content = input.value.trim();
+  if (!content) return;
+
+  // 解析 @提及
+  const atMatches = content.match(/@(\S+)/g) ?? [];
+  const atNicks   = atMatches.map(m => m.slice(1));
+  const gid       = currentSession.type === 'group' ? currentSession.id : null;
+  const atUids    = gid ? (groupMembers[gid] ?? [])
+    .filter(m => atNicks.includes(m.nickname))
+    .map(m => m.uid) : [];
+
+  const pkt = {
+    type:          'msg',
+    chat_type:     currentSession.type === 'group' ? 2 : 1,
+    to_id:         currentSession.id,
+    msg_type:      1,
+    content,
+    reply_msg_id:  replyMsg?.msg_id ?? null,
+    at_uids:       atUids,
+  };
+
+  input.value = '';
+  input.style.height = '';
+  clearReply();
+
+  WS.sendMsg(pkt);
+  // 本地立即渲染（乐观 UI）
+  appendMessage({
+    ...pkt, from_uid: ME.uid,
+    from_nickname: ME.nickname,
+    msg_id: 'local_' + Date.now(),
+    ts: new Date().toISOString(),
+  });
+  scrollToBottom(document.getElementById('chatMessages'));
+}
+
+/** 发送图片 */
+async function sendImage(input) {
+  if (!input.files.length || !currentSession) return;
+  const form = new FormData();
+  form.append('image', input.files[0]);
+  showLoading('上传中…');
+  const res = await apiUpload('upload/image', form);
+  hideLoading();
+  input.value = '';
+  if (res.code !== 0) { toast(res.msg || '上传失败', 'error'); return; }
+  const pkt = {
+    type: 'msg', chat_type: currentSession.type === 'group' ? 2 : 1,
+    to_id: currentSession.id, msg_type: 2, content: res.url,
+    reply_msg_id: null, at_uids: [],
+  };
+  WS.sendMsg(pkt);
+  appendMessage({ ...pkt, from_uid: ME.uid, from_nickname: ME.nickname, msg_id: 'local_' + Date.now(), ts: new Date().toISOString() });
+  scrollToBottom(document.getElementById('chatMessages'));
+}
+
+// ================================================================
+//  输入框处理
+// ================================================================
+function handleInputKey(e) {
+  // Enter 发送；Shift+Enter 换行
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    // 如果 @提及下拉在显示则选中第一条
+    const suggest = document.getElementById('atSuggest');
+    if (!suggest.classList.contains('hidden')) {
+      suggest.querySelector('.at-suggest-item')?.click();
+      return;
+    }
+    sendMessage();
+  }
+}
+
+function handleInputChange(el) {
+  // 自动高度
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 130) + 'px';
+  // @ 提及检测
+  detectAtMention(el);
+}
+
+/** 检测并渲染 @提及下拉 */
+function detectAtMention(el) {
+  if (currentSession?.type !== 'group') return;
+  const val    = el.value;
+  const pos    = el.selectionStart;
+  const before = val.slice(0, pos);
+  const match  = before.match(/@(\S*)$/);
+  const suggest = document.getElementById('atSuggest');
+
+  if (!match) { suggest.classList.add('hidden'); return; }
+  const query   = match[1].toLowerCase();
+  const gid     = currentSession.id;
+  const members = (groupMembers[gid] ?? []).filter(m =>
+    m.uid != ME.uid && (!query || m.nickname.toLowerCase().includes(query)));
+
+  if (!members.length) { suggest.classList.add('hidden'); return; }
+  suggest.classList.remove('hidden');
+  suggest.innerHTML = members.slice(0, 8).map(m => `
+    <div class="at-suggest-item" onclick="selectAtMention('${escHtml(m.nickname)}')">
+      ${avatarHtml(m.nickname, 'avatar-xs')}
+      <span>${escHtml(m.nickname)}</span>
+    </div>`).join('');
+}
+
+function selectAtMention(nick) {
+  const el  = document.getElementById('chatInput');
+  const val = el.value;
+  const pos = el.selectionStart;
+  // 替换 @xxx 前缀
+  const before   = val.slice(0, pos).replace(/@\S*$/, `@${nick} `);
+  el.value = before + val.slice(pos);
+  el.focus();
+  el.selectionStart = el.selectionEnd = before.length;
+  document.getElementById('atSuggest').classList.add('hidden');
+}
+
+// ================================================================
+//  引用回复
+// ================================================================
+function setReply(msg) {
+  replyMsg = msg;
+  const preview = String(msg.content ?? '').slice(0, 40);
+  document.getElementById('replyPreview').textContent = `${msg.from_nickname ?? msg.from_uid}: ${preview}`;
+  document.getElementById('replyBar').classList.remove('hidden');
+  document.getElementById('chatInput').focus();
+}
+
+function clearReply() {
+  replyMsg = null;
+  document.getElementById('replyBar').classList.add('hidden');
+}
+
+// ================================================================
+//  消息长按菜单
+// ================================================================
+function showMsgMenu(e, pkt) {
+  const isSelf = pkt.from_uid == ME.uid;
+  const items  = [
+    { label: '引用回复', icon: '↩', action: () => setReply(pkt) },
+    { label: '复制文字', icon: '📋', action: () => navigator.clipboard?.writeText(pkt.content ?? '') },
+  ];
+  if (isSelf) {
+    items.push('divider');
+    items.push({ label: '撤回消息', icon: '↩', danger: true, action: () => recallMsg(pkt) });
+  }
+  if (ME.role >= 3) {
+    items.push({ label: '设为精华', icon: '⭐', action: () => api('msg/essence', { msg_id: pkt.msg_id, is_essence: 1 }).then(r => toast(r.msg, r.code===0?'success':'error')) });
+    items.push({ label: '置顶消息', icon: '📌', action: () => api('msg/top',     { msg_id: pkt.msg_id, is_top: 1     }).then(r => toast(r.msg, r.code===0?'success':'error')) });
+  }
+  showContextMenu(e, items);
+}
+
+async function recallMsg(pkt) {
+  const res = await api('msg/recall', { msg_id: pkt.msg_id });
+  if (res.code === 0) {
+    const el = document.querySelector(`[data-msg-id="${pkt.msg_id}"] .msg-bubble`);
+    if (el) { el.textContent = '消息已被撤回'; el.classList.add('text-muted'); }
+  }
+  toast(res.msg, res.code === 0 ? 'success' : 'error');
+}
+
+// ================================================================
+//  搜索消息
+// ================================================================
+function openMsgSearch() {
+  if (!currentSession) return;
+  showModal({
+    title: '搜索消息',
+    body: `<div class="form-group">
+      <input class="form-input" id="searchKeyword" placeholder="输入关键词…" autofocus />
+    </div>
+    <div id="searchResults" style="max-height:300px;overflow-y:auto;margin-top:.75rem"></div>`,
+    confirmText: '搜索',
+    onConfirm: async () => {
+      const kw  = document.getElementById('searchKeyword').value.trim();
+      if (!kw) return;
+      const res = await api('msg/search', {
+        chat_type: currentSession.type === 'group' ? 2 : 1,
+        to_id:     currentSession.id,
+        keyword:   kw,
+      });
+      const container = document.getElementById('searchResults');
+      if (!container) return;
+      if (res.code !== 0 || !res.data?.length) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;text-align:center">未找到相关消息</p>';
+        return;
+      }
+      container.innerHTML = res.data.slice(0, 20).map(m => `
+        <div style="padding:.5rem;border-bottom:1px solid var(--border);font-size:.85rem">
+          <div style="color:var(--text-muted);font-size:.75rem">${formatTime(m.ts)}</div>
+          <div>${parseContent(m.content ?? '')}</div>
+        </div>`).join('');
+      return true; // 阻止关闭
+    }
+  });
+}
+
+// ================================================================
+//  头像点击 → 查看资料
+// ================================================================
+async function clickAvatar(uid) {
+  if (!uid) return;
+  const res = await api('user/info', { uid }, 'GET');
+  if (res.code !== 0) { toast(res.msg, 'error'); return; }
+  const u = res.data;
+  showModal({
+    title: '用户资料',
+    body: `
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+        ${u.avatar ? `<img src="${escHtml(u.avatar)}" class="avatar avatar-lg">` : avatarHtml(u.nickname, 'avatar-lg')}
+        <div>
+          <div class="font-bold text-lg">${escHtml(u.nickname)}</div>
+          <div class="text-sm text-muted">ID: ${u.uid}</div>
+          <div class="text-xs text-muted" style="margin-top:.25rem">${u.is_online ? '🟢 在线' : '⚫ 离线'}</div>
+        </div>
+      </div>`,
+    confirmText: '发私信',
+    onConfirm: () => {
+      openSession({ type: 'private', id: String(u.uid), name: u.nickname, avatar: u.avatar, online: u.is_online });
+    }
+  });
+}
+
+// ================================================================
+//  侧边切换面板
+// ================================================================
+function switchPanel(name) {
+  ['chat', 'contact'].forEach(p => {
+    document.getElementById(`panel-${p}`).classList.toggle('hidden', p !== name);
+    document.getElementById(`nav-${p}`)?.classList.toggle('active', p === name);
+  });
+  // 手机端显示面板
+  if (window.innerWidth <= 768) {
+    document.getElementById(`panel-${name}`).classList.add('open');
+  }
+}
+
+function closeChat() {
+  document.getElementById('panel-chat').classList.add('open');
+  if (window.innerWidth <= 768) {
+    document.getElementById('chatContainer').style.display = 'none';
+    document.getElementById('chatEmpty').style.display = 'flex';
+  }
+}
+
+// ================================================================
+//  在线人数
+// ================================================================
+async function loadOnlineCount() {
+  const res = await api('user/online_count', {}, 'GET');
+  if (res.code === 0) {
+    document.getElementById('totalCount').textContent  = res.data.total;
+    document.getElementById('onlineCount').textContent = res.data.online;
+  }
+}
+
+// ================================================================
+//  自己的头像
+// ================================================================
+function renderSelfAvatar() {
+  const wrap = document.getElementById('self-avatar-btn');
+  if (ME.avatar) {
+    wrap.innerHTML = `<img src="${escHtml(ME.avatar)}" class="avatar" style="width:36px;height:36px">`;
+  } else {
+    wrap.innerHTML = avatarHtml(ME.nickname, 'avatar-sm');
+  }
+}
+
+// ================================================================
+//  "我的"菜单
+// ================================================================
+function showMeMenu() {
+  showModal({
+    title: '我的账号',
+    body: `
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+        <label style="cursor:pointer;position:relative" title="点击更换头像">
+          <div id="meAvatar">
+            ${ME.avatar ? `<img src="${escHtml(ME.avatar)}" class="avatar avatar-lg">` : avatarHtml(ME.nickname, 'avatar-lg')}
+          </div>
+          <span style="position:absolute;bottom:0;right:0;background:var(--primary);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem">📷</span>
+          <input type="file" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
+        </label>
+        <div>
+          <div class="font-semibold text-lg">${escHtml(ME.nickname)}</div>
+          <div class="text-sm text-muted">ID: ${ME.uid}</div>
+        </div>
+      </div>`,
+    confirmText: '退出登录',
+    destructive: true,
+    onConfirm: async () => {
+      showModal({
+        title: '确认退出',
+        body: '<p>您确定要退出登录吗？</p>',
+        confirmText: '退出登录',
+        destructive: true,
+        onConfirm: async () => {
+          await api('auth/logout', {});
+          location.href = '/auth.html';
+        }
+      });
+      return true;
+    }
+  });
+}
+
+async function uploadAvatar(input) {
+  if (!input.files.length) return;
+  const form = new FormData();
+  form.append('avatar', input.files[0]);
+  showLoading('上传中…');
+  const res = await apiUpload('user/avatar', form);
+  hideLoading();
+  if (res.code === 0) {
+    ME.avatar = res.path;
+    renderSelfAvatar();
+    toast('头像已更新', 'success');
+  } else {
+    toast(res.msg || '上传失败', 'error');
+  }
+}
+
+// ================================================================
+//  创建群组
+// ================================================================
+function createGroupModal() {
+  showModal({
+    title: '创建群组',
+    body: `<div class="form-group">
+      <label class="form-label">群名称</label>
+      <input class="form-input" id="newGroupName" placeholder="请输入群名称" maxlength="30" autofocus />
+    </div>`,
+    confirmText: '创建',
+    onConfirm: async () => {
+      const name = document.getElementById('newGroupName')?.value?.trim();
+      if (!name) { toast('群名称不能为空', 'error'); return; }
+      const res = await api('group/create', { name });
+      if (res.code === 0) {
+        toast(`群组创建成功，群号：${res.gid}`, 'success');
+        await loadSessions();
+      } else {
+        toast(res.msg, 'error');
+      }
+    }
+  });
+}
+
+// ================================================================
+//  添加好友
+// ================================================================
+function addFriendModal() {
+  showModal({
+    title: '添加好友',
+    body: `<div class="form-group">
+      <label class="form-label">用户 ID</label>
+      <input class="form-input" id="targetUid" type="number" placeholder="输入对方的用户 ID" autofocus />
+    </div>`,
+    confirmText: '添加',
+    onConfirm: async () => {
+      const uid = parseInt(document.getElementById('targetUid')?.value);
+      if (!uid) { toast('请输入有效的用户 ID', 'error'); return; }
+      const res = await api('friend/add', { target_uid: uid });
+      toast(res.msg, res.code === 0 ? 'success' : 'error');
+      if (res.code === 0) await loadSessions();
+    }
+  });
+}
+
+// ================================================================
+//  全局搜索
+// ================================================================
+function openGlobalSearch() {
+  toast('全局搜索功能即将上线', 'info');
+}
+
+// ================================================================
+//  右侧信息面板
+// ================================================================
+function toggleInfoPanel() {
+  const panel = document.getElementById('infoPanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : '';
+  if (!isOpen && currentSession?.type === 'group') {
+    renderInfoPanel();
+  }
+}
+
+function renderInfoPanel() {
+  const gid     = currentSession?.id;
+  const members = groupMembers[gid] ?? [];
+  const panel   = document.getElementById('infoPanelContent');
+  panel.innerHTML = `
+    <div style="font-weight:700;margin-bottom:1rem">群成员 (${members.length})</div>
+    ${members.map(m => `
+      <div style="display:flex;align-items:center;gap:.625rem;padding:.4rem 0;cursor:pointer" onclick="clickAvatar(${m.uid})">
+        ${m.avatar ? `<img src="${escHtml(m.avatar)}" class="avatar avatar-xs">` : avatarHtml(m.nickname, 'avatar-xs')}
+        <div style="flex:1;min-width:0">
+          <div class="truncate text-sm font-semibold">${escHtml(m.nickname)}</div>
+          ${m.title ? `<div class="text-xs" style="color:var(--primary)">${escHtml(m.title)}</div>` : ''}
+        </div>
+        ${m.is_online ? '<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;flex-shrink:0"></span>' : ''}
+      </div>`).join('')}`;
+}
+
+// ================================================================
+//  主菜单
+// ================================================================
+function showMainMenu(btn) {
+  const items = [
+    { label: '创建群组', icon: '👥', action: createGroupModal },
+    { label: '添加好友', icon: '➕', action: addFriendModal },
+    ...(ME.role >= 3 ? [{ label: '管理后台', icon: '⚙️', action: () => { location.href = '/admin.html'; } }] : []),
+  ];
+  showContextMenu({ clientX: btn.getBoundingClientRect().right - 20, clientY: btn.getBoundingClientRect().bottom + 4 }, items);
+}
+
+function showChatMenu() {
+  if (!currentSession) return;
+  const isGroup   = currentSession.type === 'group';
+  const gid       = currentSession.id;
+  const gm        = (groupMembers[gid] ?? []).find(m => m.uid == ME.uid);
+  const myRole    = gm?.role ?? 0; // 0=成员 1=管理员 2=群主
+  const items = [];
+
+  if (isGroup) {
+    if (ME.role >= 3 || myRole >= 1) {
+      items.push({ label: '发布公告', icon: '📢', action: () => publishNotice(gid) });
+    }
+    if (myRole >= 2) {
+      items.push({ label: '解散群组', icon: '🗑️', danger: true, action: () => dissolveGroup(gid) });
+      items.push({ label: '转让群主', icon: '👑', action: () => transferGroup(gid) });
+    }
+  }
+  items.push({ label: '搜索消息', icon: '🔍', action: openMsgSearch });
+  const menuBtn = document.getElementById('chatMenuBtn');
+  showContextMenu({ clientX: menuBtn.getBoundingClientRect().right - 20, clientY: menuBtn.getBoundingClientRect().bottom + 4 }, items);
+}
+
+async function publishNotice(gid) {
+  showModal({
+    title: '发布群公告',
+    body: `<div class="form-group"><textarea class="form-input" id="noticeText" rows="4" placeholder="公告内容…" maxlength="500"></textarea></div>`,
+    confirmText: '发布',
+    onConfirm: async () => {
+      const content = document.getElementById('noticeText')?.value?.trim();
+      if (!content) return;
+      const res = await api('notice/set', { gid, content });
+      toast(res.msg, res.code === 0 ? 'success' : 'error');
+      if (res.code === 0) loadGroupNotice(gid);
+    }
+  });
+}
+
+async function dissolveGroup(gid) {
+  showModal({
+    title: '解散群组',
+    body: '<p class="text-sm">⚠️ 解散后群组将无法恢复，确定要解散吗？</p>',
+    confirmText: '确认解散',
+    destructive: true,
+    onConfirm: async () => {
+      const res = await api('group/dissolve', { gid });
+      toast(res.msg, res.code === 0 ? 'success' : 'error');
+      if (res.code === 0) { currentSession = null; document.getElementById('chatEmpty').style.display = 'flex'; document.getElementById('chatContainer').style.display = 'none'; await loadSessions(); }
+    }
+  });
+}
+
+function transferGroup(gid) {
+  showModal({
+    title: '转让群主',
+    body: `<div class="form-group">
+      <label class="form-label">输入新群主 UID</label>
+      <input class="form-input" id="newOwnerUid" type="number" placeholder="新群主用户 ID" autofocus />
+    </div>`,
+    confirmText: '确认转让',
+    onConfirm: async () => {
+      const uid = parseInt(document.getElementById('newOwnerUid')?.value);
+      if (!uid) { toast('请输入有效的用户 ID', 'error'); return; }
+      const res = await api('group/transfer', { gid, target_uid: uid });
+      toast(res.msg, res.code === 0 ? 'success' : 'error');
+    }
+  });
+}
+
+// ================================================================
+//  工具：长按事件（移动端）
+// ================================================================
+function makeLongPressHandler(callback) {
+  let timer = null;
+  return function(e) {
+    timer = setTimeout(() => { callback(e); timer = null; }, 600);
+    document.addEventListener('touchend',  () => { if (timer) clearTimeout(timer); }, { once: true });
+    document.addEventListener('touchmove', () => { if (timer) clearTimeout(timer); }, { once: true });
+  };
+}
+</script>
+</body>
+</html>

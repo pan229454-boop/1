@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 / 注册 - 极聊（商用版）</title>
+  <link rel="stylesheet" href="/assets/css/app.css" />
+  <style>
+    /* 背景图（可由后台设置覆盖 --bg-auth-img 变量） */
+    .auth-layout {
+      background-image: var(--bg-auth-img, linear-gradient(135deg,
+        rgba(79,115,248,.12) 0%, rgba(168,85,247,.08) 100%));
+      background-size: cover; background-position: center;
+    }
+    .auth-card { animation: modal-in .3s ease; }
+  </style>
+</head>
+<body>
+
+<!-- 背景图由后台配置注入 -->
+<div id="bg-inject"></div>
+
+<div class="auth-layout" id="authLayout">
+  <div class="auth-card">
+    <!-- Logo -->
+    <div class="auth-logo">
+      <div><div class="auth-logo-icon" id="appLogoChar">极</div></div>
+      <h1 id="appName">极聊（商用版）</h1>
+      <p id="appSlogan">快速、安全、轻量的即时通讯</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login"  onclick="switchTab('login')">登录</button>
+      <button class="auth-tab"        id="tab-register" onclick="switchTab('register')">注册</button>
+    </div>
+
+    <!-- ── 登录表单 ───────────────────────────────────────────── -->
+    <form id="form-login" class="auth-form" onsubmit="doLogin(event)">
+      <div class="form-group">
+        <label class="form-label" for="l-username">用户名</label>
+        <input class="form-input" id="l-username" type="text" placeholder="请输入用户名" autocomplete="username" required />
+      </div>
+      <div class="form-group" style="position:relative">
+        <label class="form-label" for="l-password">密码</label>
+        <input class="form-input" id="l-password" type="password" placeholder="请输入密码" autocomplete="current-password" required />
+        <button type="button" style="position:absolute;right:.75rem;bottom:.65rem;background:none;border:none;cursor:pointer;font-size:1.1rem" onclick="togglePasswordVisibility(document.getElementById('l-password'),this)">👁</button>
+      </div>
+
+      <!-- 滑块验证码 -->
+      <div id="login-slider-wrap">
+        <div class="slider-captcha" id="login-slider"></div>
+        <p class="form-hint" style="margin-top:.3rem">请拖动滑块完成验证</p>
+      </div>
+
+      <button class="btn btn-primary btn-full" type="submit" id="btn-login">登录</button>
+
+      <div class="auth-footer">
+        还没有账号？<a href="#" onclick="switchTab('register');return false">立即注册</a>
+        &nbsp;|&nbsp;
+        <a href="#" id="forgotLink" onclick="showForgotModal();return false">忘记密码</a>
+      </div>
+    </form>
+
+    <!-- ── 注册表单 ───────────────────────────────────────────── -->
+    <form id="form-register" class="auth-form hidden" onsubmit="doRegister(event)">
+      <div class="form-group">
+        <label class="form-label" for="r-username">用户名</label>
+        <input class="form-input" id="r-username" type="text" placeholder="3-20位字母/数字/下划线" autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="r-nickname">昵称（选填）</label>
+        <input class="form-input" id="r-nickname" type="text" placeholder="不填则与用户名相同" />
+      </div>
+      <div class="form-group" style="position:relative">
+        <label class="form-label" for="r-password">密码</label>
+        <input class="form-input" id="r-password" type="password" placeholder="至少6位" autocomplete="new-password" required />
+        <button type="button" style="position:absolute;right:.75rem;bottom:.65rem;background:none;border:none;cursor:pointer;font-size:1.1rem" onclick="togglePasswordVisibility(document.getElementById('r-password'),this)">👁</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="r-password2">确认密码</label>
+        <input class="form-input" id="r-password2" type="password" placeholder="再次输入密码" autocomplete="new-password" required />
+      </div>
+
+      <!-- 邮箱（由后台开关控制） -->
+      <div class="form-group" id="field-email" style="display:none">
+        <label class="form-label" for="r-email">邮箱 <span style="color:#ef4444">*</span></label>
+        <input class="form-input" id="r-email" type="email" placeholder="请输入邮箱" autocomplete="email" />
+      </div>
+
+      <!-- 手机号（由后台开关控制） -->
+      <div class="form-group" id="field-phone" style="display:none">
+        <label class="form-label" for="r-phone">手机号 <span style="color:#ef4444">*</span></label>
+        <input class="form-input" id="r-phone" type="tel" placeholder="请输入手机号" autocomplete="tel" />
+      </div>
+
+      <!-- 滑块验证码 -->
+      <div id="reg-slider-wrap">
+        <div class="slider-captcha" id="reg-slider"></div>
+        <p class="form-hint" style="margin-top:.3rem">请拖动滑块完成验证</p>
+      </div>
+
+      <button class="btn btn-primary btn-full" type="submit" id="btn-register">注册账号</button>
+
+      <div class="auth-footer">
+        已有账号？<a href="#" onclick="switchTab('login');return false">直接登录</a>
+      </div>
+    </form>
+
+  </div><!-- /auth-card -->
+</div><!-- /auth-layout -->
+
+<div id="toast-container"></div>
+<script src="/assets/js/common.js"></script>
+<script>
+'use strict';
+
+// ── 状态 ──────────────────────────────────────────────────────
+let loginSlider  = null;
+let regSlider    = null;
+let loginVerified = false;
+let regVerified   = false;
+let appConfig    = {};
+
+// ── 初始化 ────────────────────────────────────────────────────
+(async function init() {
+  // 读取后台配置（应用名、背景图、验证码开关等）
+  const res = await api('admin/settings/get', {}, 'GET').catch(() => ({code:-1}));
+  if (res.code === 0) {
+    appConfig = res.data ?? {};
+    // 应用名/口号
+    if (appConfig.app_name) {
+      document.title = `登录 / 注册 - ${appConfig.app_name}`;
+      document.getElementById('appName').textContent = appConfig.app_name;
+    }
+    // 登录页背景
+    if (appConfig.login_bg) {
+      document.getElementById('authLayout').style.backgroundImage = `url(${appConfig.login_bg})`;
+    }
+    // 自定义 CSS
+    if (appConfig.custom_css_login) {
+      const style = document.createElement('style');
+      style.textContent = appConfig.custom_css_login;
+      document.head.appendChild(style);
+    }
+    // 邮箱/手机字段显示
+    if (appConfig.register_email_verify === '1') {
+      document.getElementById('field-email').style.display = '';
+    }
+    if (appConfig.register_phone_verify === '1') {
+      document.getElementById('field-phone').style.display = '';
+    }
+  }
+
+  // 初始化滑块验证码
+  const captchaEnable = appConfig.captcha_slider_enable !== '0';
+  if (captchaEnable) {
+    loginSlider = new SliderCaptcha(document.getElementById('login-slider'), () => { loginVerified = true; });
+    regSlider   = new SliderCaptcha(document.getElementById('reg-slider'),   () => { regVerified   = true; });
+  } else {
+    document.getElementById('login-slider-wrap').style.display = 'none';
+    document.getElementById('reg-slider-wrap').style.display   = 'none';
+    loginVerified = true;
+    regVerified   = true;
+  }
+
+  // URL 参数自动切换标签
+  const params = new URLSearchParams(location.search);
+  if (params.get('tab') === 'register') switchTab('register');
+})();
+
+// ── 切换登录/注册 Tab ─────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('form-login').classList.toggle('hidden',    tab !== 'login');
+  document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+  document.getElementById('tab-login').classList.toggle('active',     tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active',  tab === 'register');
+}
+
+// ── 登录逻辑 ─────────────────────────────────────────────────
+async function doLogin(e) {
+  e.preventDefault();
+  if (!loginVerified) { toast('请先完成滑块验证', 'warning'); loginSlider?.reset(); return; }
+
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = '登录中…';
+
+  const res = await api('auth/login', {
+    username: document.getElementById('l-username').value.trim(),
+    password: document.getElementById('l-password').value,
+  });
+
+  btn.disabled = false; btn.textContent = '登录';
+  if (res.code === 0) {
+    toast('登录成功，正在跳转…', 'success');
+    showLoading('正在进入聊天室…');
+    setTimeout(() => { location.href = '/app.html'; }, 800);
+  } else {
+    toast(res.msg || '登录失败', 'error');
+    loginVerified = false; loginSlider?.reset();
+    document.getElementById('l-password').value = '';
+  }
+}
+
+// ── 注册逻辑 ─────────────────────────────────────────────────
+async function doRegister(e) {
+  e.preventDefault();
+  if (!regVerified) { toast('请先完成滑块验证', 'warning'); regSlider?.reset(); return; }
+
+  const pwd  = document.getElementById('r-password').value;
+  const pwd2 = document.getElementById('r-password2').value;
+  if (pwd !== pwd2) { toast('两次密码不一致', 'error'); return; }
+  if (pwd.length < 6) { toast('密码不能少于6位', 'error'); return; }
+
+  const btn = document.getElementById('btn-register');
+  btn.disabled = true; btn.textContent = '注册中…';
+
+  const res = await api('auth/register', {
+    username: document.getElementById('r-username').value.trim(),
+    nickname: document.getElementById('r-nickname').value.trim(),
+    password: pwd,
+    email:    document.getElementById('r-email')?.value?.trim() ?? '',
+    phone:    document.getElementById('r-phone')?.value?.trim() ?? '',
+  });
+
+  btn.disabled = false; btn.textContent = '注册账号';
+  if (res.code === 0) {
+    toast(`注册成功！您的账号 ID 是 ${res.uid}，请登录`, 'success', 5000);
+    regVerified = false; regSlider?.reset();
+    switchTab('login');
+  } else {
+    toast(res.msg || '注册失败', 'error');
+    regVerified = false; regSlider?.reset();
+  }
+}
+
+// ── 忘记密码 ─────────────────────────────────────────────────
+function showForgotModal() {
+  showModal({
+    title: '重置密码',
+    body: `<div class="form-group">
+      <label class="form-label">注册邮箱</label>
+      <input class="form-input" id="forgot-email" type="email" placeholder="请输入注册邮箱" />
+    </div>
+    <p class="form-hint" style="margin-top:.5rem">系统将向您的邮箱发送重置链接（需后台已配置 SMTP）</p>`,
+    confirmText: '发送重置邮件',
+    onConfirm: async () => {
+      const email = document.getElementById('forgot-email')?.value?.trim();
+      if (!email) { toast('请输入邮箱', 'error'); return; }
+      toast('功能开发中，请联系管理员重置密码', 'info');
+    }
+  });
+}
+</script>
+</body>
+</html>
