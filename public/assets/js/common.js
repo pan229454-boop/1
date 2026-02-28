@@ -25,7 +25,7 @@ async function api(action, data = {}, method = 'POST') {
         ? `${API_BASE}?action=${encodeURIComponent(action)}&${new URLSearchParams(data)}`
         : `${API_BASE}?action=${encodeURIComponent(action)}`;
 
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    const opts = { method, credentials: 'include', headers: { 'Content-Type': 'application/json' } };
     if (method === 'POST') opts.body = JSON.stringify(data);
 
     try {
@@ -33,6 +33,7 @@ async function api(action, data = {}, method = 'POST') {
         const json = await res.json();
         return json;
     } catch (e) {
+        console.error('[API]', action, e);
         return { code: -1, msg: '网络错误，请检查连接' };
     }
 }
@@ -45,7 +46,7 @@ async function api(action, data = {}, method = 'POST') {
  */
 async function apiUpload(action, formData) {
     try {
-        const res  = await fetch(`${API_BASE}?action=${encodeURIComponent(action)}`, { method: 'POST', body: formData });
+        const res  = await fetch(`${API_BASE}?action=${encodeURIComponent(action)}`, { method: 'POST', credentials: 'include', body: formData });
         return await res.json();
     } catch (e) {
         return { code: -1, msg: '上传失败' };

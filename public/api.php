@@ -80,6 +80,10 @@ switch ($action) {
 
     case 'auth/me':
         $user = $auth->user();
+        if (!$user) {
+            Response::json(['code' => 0, 'data' => null]);
+            break;
+        }
         Response::json(['code' => 0, 'data' => array_merge($user, ['session_id' => session_id()])]);
         break;
 

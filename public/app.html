@@ -306,6 +306,11 @@ async function loadSessions() {
     api('friend/list', {}, 'GET'),
   ]);
 
+  console.log('[Sessions] group/list =>', groupRes, '| friend/list =>', friendRes);
+
+  if (groupRes.code !== 0) console.error('[Sessions] group/list error:', groupRes.msg);
+  if (friendRes.code !== 0) console.error('[Sessions] friend/list error:', friendRes.msg);
+
   sessions = [];
 
   // 群组
