@@ -110,12 +110,16 @@
 
 ### Composer 安装依赖
 
-在宝塔终端或 SSH 中执行：
+先移出禁用PHP函数：软件商店→PHP版本→设置→禁用函数:putenv、proc_open
+
+后在宝塔终端或 SSH 中执行：
 
 ```bash
 cd /www/wwwroot/jiliao
 composer install --no-dev --optimize-autoloader
 ```
+或者直接临时覆盖运行：
+php -d disable_functions="" /www/server/php/81/bin/composer install --no-dev --optimize-autoloader
 
 ### 运行安装向导
 
