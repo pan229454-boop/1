@@ -43,7 +43,8 @@ log "当前 commit: $(git rev-parse --short HEAD) - $(git log -1 --pretty='%s')"
 # ── 2. 安装/更新 Composer 依赖（仅在 composer.json 变更时）────
 if git diff HEAD@{1} HEAD --name-only 2>/dev/null | grep -q "composer"; then
     log "[2/5] composer.json 有变更，更新依赖…"
-    "$PHP_BIN" "$COMPOSER_BIN" install \
+    # 宝塔面板默认禁用 putenv/proc_open，需用 -d disable_functions="" 覆盖
+    "$PHP_BIN" -d disable_functions="" "$COMPOSER_BIN" install \
         --no-dev \
         --optimize-autoloader \
         --no-interaction \
