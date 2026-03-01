@@ -15,6 +15,16 @@ COMPOSER_BIN="${COMPOSER_BIN:-/usr/local/bin/composer}"
 WS_SERVICE="jiliao-ws"           # supervisor 进程名
 BRANCH="${DEPLOY_BRANCH:-main}"  # 要拉取的分支
 
+# SSH Key 路径：www 用户优先，否则回退到 root
+if   [ -f /www/.ssh/id_ed25519 ];  then GIT_SSH_KEY=/www/.ssh/id_ed25519
+elif [ -f /root/.ssh/id_ed25519 ]; then GIT_SSH_KEY=/root/.ssh/id_ed25519
+else GIT_SSH_KEY=""; fi
+
+# 设置 GIT_SSH_COMMAND 确保使用指定 Key 且不交互式确认 host
+if [ -n "$GIT_SSH_KEY" ]; then
+    export GIT_SSH_COMMAND="ssh -i ${GIT_SSH_KEY} -o StrictHostKeyChecking=no -o BatchMode=yes"
+fi
+
 # ── 日志函数 ──────────────────────────────────────────────────
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 

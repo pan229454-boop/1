@@ -321,37 +321,69 @@ git push → GitHub → 发送 Webhook POST → /webhook.php → 验证签名 �
                                                                      └─ supervisorctl restart（按需）
 ```
 
-### 第一步：服务器配置 SSH Key（让 www 用户能 git pull）
+### 第一步：配置 SSH Key（让服务器能 git pull）
+
+宝塔的 `www` 用户没有密码和登录 Shell，**不需要 `su -s /bin/bash www`**。直接在宝塔终端（root 或当前 SSH 会话）执行即可。
 
 ```bash
-# 切换到 www 用户
-su -s /bin/bash www
+# 1. 生成 SSH Key（直接在当前终端执行，一路回车）
+ssh-keygen -t ed25519 -C "deploy@yourdomain.com" -f /root/.ssh/id_ed25519_deploy
 
-# 生成 SSH Key（一路回车）
-ssh-keygen -t ed25519 -C "deploy@yourdomain.com" -f ~/.ssh/id_ed25519
+# 2. 查看公钥（复制全部输出）
+cat /root/.ssh/id_ed25519_deploy.pub
 
-# 查看公钥，复制全部输出内容
-cat ~/.ssh/id_ed25519.pub
+# 3. 把私钥同步给 www 用户，让 deploy.sh 以 www 身份 git pull 时也能用到
+mkdir -p /www/.ssh
+cp /root/.ssh/id_ed25519_deploy     /www/.ssh/id_ed25519
+cp /root/.ssh/id_ed25519_deploy.pub /www/.ssh/id_ed25519.pub
+chown -R www:www /www/.ssh
+chmod 700 /www/.ssh
+chmod 600 /www/.ssh/id_ed25519
+
+# 4. 写入 SSH 配置，避免每次连接都要确认 host
+cat > /www/.ssh/config << 'EOF'
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    StrictHostKeyChecking no
+EOF
+chown www:www /www/.ssh/config
+chmod 600 /www/.ssh/config
 ```
 
-然后将公钥添加到 GitHub：
-- 方式一（推荐）：仓库 → **Settings → Deploy keys → Add deploy key**，勾选 **Allow write access** 为 ❌（只读即可）
-- 方式二：账号级 → **Settings → SSH and GPG keys → New SSH key**
+将 `cat /root/.ssh/id_ed25519_deploy.pub` 输出的内容添加到 GitHub 仓库：
+- **Settings → Deploy keys → Add deploy key**（只读，无需 Allow write access）
 
-验证连通性：
+验证 www 用户的连通性（宝塔中 www 没有登录 shell，改用 sudo -u）：
 
 ```bash
-su -s /bin/bash www
-ssh -T git@github.com
-# 成功提示：Hi username! You've successfully authenticated...
+sudo -u www ssh -T git@github.com
+# 成功提示：Hi pan229454-boop/1! You've successfully authenticated...
 ```
+
+> ⚠️ 如果提示 `sudo: command not found`，宝塔 CentOS 版本改用：
+> ```bash
+> su -s /bin/sh -c "ssh -T git@github.com" www
+> ```
 
 ### 第二步：修改仓库远端为 SSH 协议
 
 ```bash
 cd /www/wwwroot/jiliao
+
+# 查看当前远端（若为 https:// 则需要修改）
+git remote -v
+
+# 改为 SSH 协议
 git remote set-url origin git@github.com:你的用户名/仓库名.git
-git remote -v   # 确认已改为 git@ 开头
+
+# 验证
+git remote -v
+# 应显示：origin  git@github.com:xxx/xxx.git (fetch)
+
+# 测试可以正常拉取
+git fetch origin
 ```
 
 ### 第三步：在 .env 中配置 Webhook 密钥
@@ -440,7 +472,24 @@ bash /www/wwwroot/jiliao/scripts/deploy.sh
 
 #### `git pull` 报 `Permission denied (publickey)`
 
-www 用户的 SSH Key 未添加到 GitHub，或远端仍使用 HTTPS 协议（执行第一、二步）。
+**宝塔常见原因及修复：**
+
+```bash
+# 原因 1：远端仍使用 HTTPS，切换为 SSH
+git remote set-url origin git@github.com:你的用户名/仓库名.git
+
+# 原因 2：www 用户 ~/.ssh/id_ed25519 不存在，重新执行第一步的 cp 命令
+ls -la /www/.ssh/
+
+# 原因 3：私钥权限不对（必须是 600）
+chmod 600 /www/.ssh/id_ed25519
+
+# 原因 4：公钥未添加到 GitHub Deploy Keys
+# 在 GitHub 仓库 Settings → Deploy keys 确认已添加
+
+# 测试调试
+sudo -u www ssh -vT git@github.com 2>&1 | grep -E 'offering|Authenticated|Permission'
+```
 
 #### `supervisorctl restart` 提示 `no such process`
 
