@@ -210,10 +210,15 @@ server {
 
 ```bash
 cd /www/wwwroot/jiliao
+
 php server/ws/server.php start        # 前台运行
+
 php server/ws/server.php start -d     # 后台 daemon 运行
+
 php server/ws/server.php status       # 查看状态
+
 php server/ws/server.php stop         # 停止
+
 php server/ws/server.php restart      # 重启
 ```
 
@@ -221,16 +226,54 @@ php server/ws/server.php restart      # 重启
 
 推荐使用 Supervisor 守护 WebSocket 进程，确保崩溃后自动重启。
 
-#### 安装 Supervisor（宝塔软件商店搜索安装，或手动）
+
+首先确认系统是否安装了 supervisor：
+
+```bash
+rpm -qa | grep supervisor   # CentOS/RHEL
+# 或者
+dpkg -l | grep supervisor   # Debian/Ubuntu
+```
+
+#### 如未安装则安装 Supervisor（宝塔软件商店搜索安装，或手动）
 
 ```bash
 # Ubuntu / Debian
 apt install -y supervisor
 
+
 # CentOS
 yum install -y supervisor
 systemctl enable supervisord
 ```
+
+
+```bash
+# CentOS/RHEL
+yum install supervisor -y
+
+# Ubuntu/Debian
+apt-get update && apt-get install supervisor -y
+```
+
+---
+
+2. 启动 Supervisor 服务
+
+根据你的 Linux 发行版和初始化系统，选择以下一种方式启动：
+
+方法 A：使用 systemd（CentOS 7+ / Ubuntu 16+ / Debian 8+）
+
+```bash
+sudo systemctl start supervisord
+```
+
+如果提示 Unit supervisord.service not found，可能服务名是 supervisor：
+
+```bash
+sudo systemctl start supervisor
+```
+
 
 #### 创建配置文件
 
