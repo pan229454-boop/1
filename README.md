@@ -305,8 +305,11 @@ environment      = HOME="/www",USER="www"
 
 ```bash
 supervisorctl reread
+
 supervisorctl update
+
 supervisorctl start jiliao-ws
+
 supervisorctl status             # 应显示 RUNNING
 ```
 
