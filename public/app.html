@@ -261,13 +261,15 @@ let appConfig = {};      // settings/public 公开配置缓存
 // ================================================================
 function connectWS() {
   WS = new JLSocket(WS_URL, {
-    onauth: (pkt) => {
+    onauth: (pkt, wasDisconnected) => {
       console.info('[App] WS 认证成功, uid=', pkt.uid);
+      // 仅在曾经断过线时才显示恢复提示
+      if (wasDisconnected) toast('连接已恢复 ✓', 'success', 2000);
     },
     onmsg: (pkt) => handleWsMessage(pkt),
     onclose: () => {
-      // 短暂显示断线提示（JLSocket 自动重连中）
-      toast('连接断开，正在重连…', 'warning', 2500);
+      // 不在此处弹 toast，由 JLSocket._scheduleRetry() 统一控制
+      // （连续断3次以上才会提示，避免短暂断线打扰用户）
     }
   });
   WS.connect();
