@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>连接失败</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0f172a;color:#e2e8f0;font-family:system-ui,sans-serif;
+       display:flex;flex-direction:column;align-items:center;justify-content:center;
+       min-height:100vh;padding:2rem;text-align:center}
+  .icon{font-size:4rem;margin-bottom:1rem}
+  h1{font-size:1.25rem;font-weight:700;margin-bottom:.5rem}
+  p{font-size:.875rem;color:#8899bb;margin-bottom:1.5rem;line-height:1.6}
+  button{background:#4f73f8;color:#fff;border:none;border-radius:9999px;
+         padding:.75rem 1.5rem;font-size:.9rem;cursor:pointer}
+  button:active{opacity:.8}
+</style>
+</head>
+<body>
+  <div class="icon">📡</div>
+  <h1>无法连接到服务器</h1>
+  <p>请检查网络连接后重试<br>确保已连接到互联网</p>
+  <button onclick="history.back()">重新加载</button>
+</body>
+</html>

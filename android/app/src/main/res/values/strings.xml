@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Boop</string>
+    <string name="app_slogan">轻量私人聊天</string>
+    <string name="back_press_hint">再按一次退出 Boop</string>
+    <string name="load_error">网络连接失败，请检查网络后下拉刷新重试</string>
+</resources>
