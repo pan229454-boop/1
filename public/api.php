@@ -542,7 +542,7 @@ switch ($action) {
             'register_require_email','register_require_phone',
             'email_verify_required','phone_verify_required',
             'allow_cancel_account','cancel_recover_days','cancel_freeze_days',
-            'search_enabled','sms_enabled',
+            'search_enabled','sms_enabled','index_theme',
         ];
         $ph  = implode(',', array_fill(0, count($pubKeys), '?'));
         $rows = $db->query("SELECT `key`,val FROM settings WHERE `key` IN ($ph)", $pubKeys);

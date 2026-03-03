@@ -7,302 +7,725 @@
   <meta name="description" content="极聊是一款基于 PHP + WebSocket 的即时通讯系统，支持群聊、私聊、文件传输、管理后台等完整功能。" />
   <link rel="stylesheet" href="/assets/css/app.css" />
   <style>
-    /* 仅主页补充样式 */
-    .hero-gradient {
+    #home-init-loader {
+      position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+      background:var(--bg-primary);z-index:9999;flex-direction:column;gap:1rem;
+    }
+    #home-init-loader .spinner{width:36px;height:36px;}
+    #home-root{min-height:100vh;}
+
+    /* ═══════════════ 主题：默认 ═══════════════ */
+    .t-default .hero-gradient {
       background: linear-gradient(160deg,
         rgba(79,115,248,.15) 0%,
         rgba(79,115,248,.04) 40%,
         transparent 70%);
     }
-    .gradient-text {
-      background: linear-gradient(135deg, var(--primary), #a78bfa);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
+    .t-default .gradient-text {
+      background:linear-gradient(135deg,var(--primary),#a78bfa);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
     }
-    .hero-screenshot {
+    .t-default .hero-screenshot {
       max-width: 780px; width: 100%;
       border-radius: var(--radius-lg); box-shadow: 0 24px 80px rgba(79,115,248,.25);
       border: 1px solid var(--border); background: var(--bg-card);
       overflow: hidden;
     }
-    .mock-chat-preview {
-      padding: 1rem; display: flex; flex-direction: column; gap: .5rem;
-    }
-    .mock-bar {
-      height: 36px; background: var(--bg-secondary);
-      border-radius: var(--radius-sm); margin-bottom: .5rem;
-      display: flex; align-items: center; padding: 0 .75rem; gap: .5rem;
-    }
-    .mock-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
-    .mock-dot.r { background: #f87171; }
-    .mock-dot.y { background: #fbbf24; }
-    .mock-dot.g { background: #34d399; }
-    .mock-msg { display: flex; gap: .5rem; }
-    .mock-msg.right { flex-direction: row-reverse; }
-    .mock-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
-    .mock-bubble {
-      padding: .4rem .75rem; border-radius: 12px; font-size: .82rem;
-      max-width: 60%; background: var(--bg-secondary); color: var(--text-primary);
-    }
-    .mock-msg.right .mock-bubble { background: var(--primary); color: #fff; }
+    .t-default .mock-chat-preview{padding:1rem;display:flex;flex-direction:column;gap:.5rem;}
+    .t-default .mock-bar{height:36px;background:var(--bg-secondary);border-radius:var(--radius-sm);margin-bottom:.5rem;display:flex;align-items:center;padding:0 .75rem;gap:.5rem;}
+    .t-default .mock-dot{width:10px;height:10px;border-radius:50%;background:var(--border);}
+    .t-default .mock-dot.r{background:#f87171;}.t-default .mock-dot.y{background:#fbbf24;}.t-default .mock-dot.g{background:#34d399;}
+    .t-default .mock-msg{display:flex;gap:.5rem;}.t-default .mock-msg.right{flex-direction:row-reverse;}
+    .t-default .mock-avatar{width:28px;height:28px;border-radius:50%;background:var(--primary);flex-shrink:0;}
+    .t-default .mock-bubble{padding:.4rem .75rem;border-radius:12px;font-size:.82rem;max-width:60%;background:var(--bg-secondary);color:var(--text-primary);}
+    .t-default .mock-msg.right .mock-bubble{background:var(--primary);color:#fff;}
+    .t-default .stat-row{display:flex;gap:3rem;flex-wrap:wrap;justify-content:center;}
+    .t-default .stat-item{text-align:center;}
+    .t-default .stat-num{font-size:2.5rem;font-weight:800;color:var(--primary);line-height:1;}
+    .t-default .stat-lbl{font-size:.875rem;color:var(--text-muted);margin-top:.3rem;}
+    .t-default .tech-stack{display:flex;gap:.625rem;flex-wrap:wrap;justify-content:center;margin-top:1.5rem;}
+    .t-default .tech-tag{padding:.35rem .875rem;border-radius:var(--radius-full);background:var(--bg-input);border:1px solid var(--border);font-size:.8rem;font-weight:600;color:var(--text-secondary);}
+    .t-default .cta-section{text-align:center;padding:6rem 2rem;background:linear-gradient(135deg,var(--primary) 0%,#7c3aed 100%);color:#fff;}
+    .t-default .cta-section .section-title{color:#fff;}
+    .t-default .cta-section p{color:rgba(255,255,255,.8);font-size:1.05rem;margin-top:.75rem;}
+    .t-default .cta-section .btn-ghost{border-color:rgba(255,255,255,.4);color:#fff;}
+    .t-default .cta-section .btn-ghost:hover{background:rgba(255,255,255,.15);border-color:white;}
 
-    .stat-row { display: flex; gap: 3rem; flex-wrap: wrap; justify-content: center; }
-    .stat-item { text-align: center; }
-    .stat-num  { font-size: 2.5rem; font-weight: 800; color: var(--primary); line-height: 1; }
-    .stat-lbl  { font-size: .875rem; color: var(--text-muted); margin-top: .3rem; }
+    /* ═══════════════ 主题：科技 ═══════════════ */
+    .t-tech{background:#020b18;color:#c9d6e3;font-family:'JetBrains Mono','Fira Code','Courier New',monospace,sans-serif;}
+    .t-tech *{box-sizing:border-box;}
+    .t-tech .tech-grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:linear-gradient(rgba(0,246,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,246,255,.04) 1px,transparent 1px);background-size:48px 48px;}
+    .t-tech .tech-glow{position:fixed;top:-20%;left:50%;transform:translateX(-50%);width:80vw;height:60vh;border-radius:50%;background:radial-gradient(ellipse,rgba(0,246,255,.08) 0%,transparent 70%);pointer-events:none;z-index:0;}
+    .t-tech .tech-section{position:relative;z-index:1;}
+    .t-tech .tech-navbar{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:.9rem 2.5rem;border-bottom:1px solid rgba(0,246,255,.12);background:rgba(2,11,24,.85);backdrop-filter:blur(12px);}
+    .t-tech .tech-logo{font-size:1.2rem;font-weight:700;letter-spacing:.12em;color:#00f6ff;text-shadow:0 0 16px rgba(0,246,255,.6);}
+    .t-tech .tech-nav-links{display:flex;gap:2rem;}
+    .t-tech .tech-nav-links a{color:rgba(201,214,227,.7);text-decoration:none;font-size:.85rem;letter-spacing:.06em;transition:color .2s;}
+    .t-tech .tech-nav-links a:hover{color:#00f6ff;}
+    .t-tech .tech-btn{display:inline-block;padding:.6rem 1.4rem;border-radius:4px;cursor:pointer;font-size:.85rem;font-weight:600;letter-spacing:.08em;text-decoration:none;transition:.2s;border:none;}
+    .t-tech .tech-btn-outline{border:1px solid rgba(0,246,255,.4);color:#00f6ff;background:transparent;}
+    .t-tech .tech-btn-outline:hover{background:rgba(0,246,255,.08);}
+    .t-tech .tech-btn-primary{background:linear-gradient(135deg,#00f6ff,#0070ff);color:#020b18;box-shadow:0 0 20px rgba(0,246,255,.35);}
+    .t-tech .tech-btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 28px rgba(0,246,255,.5);}
+    .t-tech .tech-hero{min-height:92vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 2rem;gap:1.5rem;}
+    .t-tech .tech-badge{display:inline-block;padding:.3rem .9rem;border:1px solid rgba(0,246,255,.3);border-radius:2px;font-size:.75rem;letter-spacing:.12em;color:#00f6ff;background:rgba(0,246,255,.06);}
+    .t-tech .tech-hero-title{font-size:clamp(2.4rem,6vw,4.5rem);font-weight:800;line-height:1.1;letter-spacing:-.01em;color:#fff;text-shadow:0 0 60px rgba(0,246,255,.2);margin:0;}
+    .t-tech .tech-neon{color:#00f6ff;text-shadow:0 0 20px rgba(0,246,255,.8);}
+    .t-tech .tech-hero-sub{max-width:600px;font-size:1rem;line-height:1.7;color:rgba(201,214,227,.65);}
+    .t-tech .tech-btns{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;}
+    .t-tech .tech-terminal{width:100%;max-width:720px;background:rgba(0,0,0,.6);border:1px solid rgba(0,246,255,.2);border-radius:6px;overflow:hidden;box-shadow:0 0 40px rgba(0,246,255,.1);}
+    .t-tech .terminal-bar{background:rgba(0,246,255,.06);padding:.5rem .75rem;display:flex;align-items:center;gap:.45rem;border-bottom:1px solid rgba(0,246,255,.12);}
+    .t-tech .terminal-dot{width:10px;height:10px;border-radius:50%;}
+    .t-tech .terminal-body{padding:1.25rem 1.5rem;font-size:.8rem;line-height:1.8;color:#7fffd4;}
+    .t-tech .terminal-line{display:flex;gap:.6rem;}
+    .t-tech .t-prompt{color:#00f6ff;opacity:.7;}.t-tech .t-cmd{color:#fff;}
+    .t-tech .t-out{color:rgba(127,255,212,.75);margin-left:1.5rem;display:block;}
+    .t-tech .t-cursor{display:inline-block;width:8px;height:1em;background:#00f6ff;animation:blink .8s step-end infinite;}
+    @keyframes blink{50%{opacity:0}}
+    .t-tech .tech-features-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;border:1px solid rgba(0,246,255,.1);background:rgba(0,246,255,.1);overflow:hidden;border-radius:6px;}
+    .t-tech .tech-feat-card{background:#020b18;padding:1.75rem;transition:.2s;}
+    .t-tech .tech-feat-card:hover{background:rgba(0,246,255,.04);}
+    .t-tech .tech-feat-icon{width:40px;height:40px;margin-bottom:.75rem;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,246,255,.25);border-radius:4px;font-size:1.25rem;background:rgba(0,246,255,.05);}
+    .t-tech .tech-feat-title{font-size:.9rem;font-weight:600;color:#e2eaf4;margin-bottom:.4rem;}
+    .t-tech .tech-feat-desc{font-size:.8rem;color:rgba(201,214,227,.5);line-height:1.6;font-family:sans-serif;}
+    .t-tech .tech-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:rgba(0,246,255,.1);border:1px solid rgba(0,246,255,.1);border-radius:6px;overflow:hidden;}
+    .t-tech .tech-stat{background:#020b18;padding:1.5rem;text-align:center;}
+    .t-tech .tech-stat-num{font-size:2.2rem;font-weight:800;color:#00f6ff;line-height:1;}
+    .t-tech .tech-stat-lbl{font-size:.75rem;color:rgba(201,214,227,.5);margin-top:.35rem;letter-spacing:.06em;font-family:sans-serif;}
+    .t-tech .tech-cta{text-align:center;padding:5rem 2rem;background:linear-gradient(135deg,rgba(0,246,255,.06),rgba(0,112,255,.08));border-top:1px solid rgba(0,246,255,.15);}
+    .t-tech .tech-cta-title{font-size:2rem;font-weight:800;color:#fff;margin-bottom:.75rem;}
+    .t-tech .tech-footer{border-top:1px solid rgba(0,246,255,.1);padding:1.5rem 2rem;text-align:center;font-size:.78rem;color:rgba(201,214,227,.35);}
+    .t-tech .tech-section-label{font-size:.72rem;letter-spacing:.16em;color:#00f6ff;opacity:.75;text-transform:uppercase;margin-bottom:.5rem;}
+    .t-tech .tech-section-title{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:700;color:#e2eaf4;margin-bottom:1rem;}
+    .t-tech .section-wrap{max-width:1100px;margin:0 auto;padding:5rem 2rem;}
+    @media(max-width:640px){.t-tech .tech-navbar{padding:.75rem 1rem;}.t-tech .tech-nav-links{display:none;}}
 
-    .tech-stack { display: flex; gap: .625rem; flex-wrap: wrap; justify-content: center; margin-top: 1.5rem; }
-    .tech-tag {
-      padding: .35rem .875rem; border-radius: var(--radius-full);
-      background: var(--bg-input); border: 1px solid var(--border);
-      font-size: .8rem; font-weight: 600; color: var(--text-secondary);
-    }
+    /* ═══════════════ 主题：极简 ═══════════════ */
+    .t-minimal{background:#fff;color:#111;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;}
+    [data-theme="dark"] .t-minimal{background:#0a0a0a;color:#f0f0f0;}
+    .t-minimal .min-navbar{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:1.25rem 3rem;border-bottom:1px solid #e8e8e8;background:#fff;}
+    [data-theme="dark"] .t-minimal .min-navbar{background:#0a0a0a;border-color:#1a1a1a;}
+    .t-minimal .min-logo{font-size:1.1rem;font-weight:800;letter-spacing:-.02em;color:#111;}
+    [data-theme="dark"] .t-minimal .min-logo{color:#f0f0f0;}
+    .t-minimal .min-nav-links{display:flex;gap:2.5rem;}
+    .t-minimal .min-nav-links a{color:#666;text-decoration:none;font-size:.9rem;transition:color .15s;}
+    .t-minimal .min-nav-links a:hover{color:#111;}
+    [data-theme="dark"] .t-minimal .min-nav-links a{color:#888;}
+    [data-theme="dark"] .t-minimal .min-nav-links a:hover{color:#f0f0f0;}
+    .t-minimal .min-btn{display:inline-block;padding:.55rem 1.3rem;font-size:.875rem;font-weight:600;text-decoration:none;border-radius:6px;cursor:pointer;transition:.15s;}
+    .t-minimal .min-btn-outline{border:1.5px solid #ddd;color:#444;background:transparent;}
+    .t-minimal .min-btn-outline:hover{border-color:#111;color:#111;}
+    .t-minimal .min-btn-dark{background:#111;color:#fff;border:none;}
+    .t-minimal .min-btn-dark:hover{background:#333;}
+    [data-theme="dark"] .t-minimal .min-btn-dark{background:#f0f0f0;color:#111;}
+    [data-theme="dark"] .t-minimal .min-btn-dark:hover{background:#ddd;}
+    .t-minimal .min-hero{max-width:900px;margin:0 auto;padding:9rem 3rem 7rem;}
+    .t-minimal .min-eyebrow{display:inline-block;font-size:.78rem;font-weight:700;letter-spacing:.14em;color:#999;text-transform:uppercase;margin-bottom:1.5rem;}
+    .t-minimal .min-title{font-size:clamp(3rem,8vw,6rem);font-weight:900;line-height:1.0;letter-spacing:-.04em;color:#111;margin:0 0 1.5rem;}
+    [data-theme="dark"] .t-minimal .min-title{color:#f0f0f0;}
+    .t-minimal .min-title em{font-style:normal;border-bottom:4px solid #111;}
+    [data-theme="dark"] .t-minimal .min-title em{border-color:#f0f0f0;}
+    .t-minimal .min-sub{font-size:1.15rem;color:#666;line-height:1.75;max-width:600px;margin-bottom:2.5rem;}
+    [data-theme="dark"] .t-minimal .min-sub{color:#999;}
+    .t-minimal .min-btns{display:flex;gap:1rem;flex-wrap:wrap;}
+    .t-minimal .min-divider{max-width:960px;margin:0 auto;height:1px;background:#e8e8e8;}
+    [data-theme="dark"] .t-minimal .min-divider{background:#1a1a1a;}
+    .t-minimal .min-features{max-width:960px;margin:0 auto;padding:5rem 3rem;}
+    .t-minimal .min-feat-label{font-size:.75rem;font-weight:700;letter-spacing:.14em;color:#999;text-transform:uppercase;margin-bottom:1rem;}
+    .t-minimal .min-feat-title{font-size:2rem;font-weight:900;letter-spacing:-.03em;color:#111;margin-bottom:3rem;}
+    [data-theme="dark"] .t-minimal .min-feat-title{color:#f0f0f0;}
+    .t-minimal .min-feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:2.5rem 3rem;}
+    .t-minimal .min-feat-num{font-size:.75rem;font-weight:800;letter-spacing:.1em;color:#bbb;margin-bottom:.5rem;}
+    .t-minimal .min-feat-name{font-size:1rem;font-weight:700;color:#111;margin-bottom:.4rem;}
+    [data-theme="dark"] .t-minimal .min-feat-name{color:#eee;}
+    .t-minimal .min-feat-desc{font-size:.875rem;color:#777;line-height:1.65;}
+    [data-theme="dark"] .t-minimal .min-feat-desc{color:#888;}
+    .t-minimal .min-cta{max-width:960px;margin:0 auto;padding:6rem 3rem;border-top:1px solid #e8e8e8;}
+    [data-theme="dark"] .t-minimal .min-cta{border-color:#1a1a1a;}
+    .t-minimal .min-cta-title{font-size:clamp(2rem,5vw,3.5rem);font-weight:900;letter-spacing:-.04em;color:#111;margin-bottom:1.25rem;}
+    [data-theme="dark"] .t-minimal .min-cta-title{color:#f0f0f0;}
+    .t-minimal .min-footer{border-top:1px solid #e8e8e8;padding:1.5rem 3rem;display:flex;align-items:center;justify-content:space-between;font-size:.82rem;color:#999;flex-wrap:wrap;gap:.5rem;}
+    [data-theme="dark"] .t-minimal .min-footer{border-color:#1a1a1a;background:#0a0a0a;}
+    .t-minimal .min-footer a{color:#666;text-decoration:none;}
+    [data-theme="dark"] .t-minimal .min-footer a{color:#888;}
+    @media(max-width:640px){.t-minimal .min-navbar{padding:.9rem 1.25rem;}.t-minimal .min-nav-links{display:none;}.t-minimal .min-hero,.t-minimal .min-features,.t-minimal .min-cta{padding-left:1.25rem;padding-right:1.25rem;}.t-minimal .min-title{font-size:3rem;}}
 
-    .cta-section {
-      text-align: center; padding: 6rem 2rem;
-      background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
-      color: #fff;
-    }
-    .cta-section .section-title { color: #fff; }
-    .cta-section p { color: rgba(255,255,255,.8); font-size: 1.05rem; margin-top: .75rem; }
-    .cta-section .btn-ghost {
-      border-color: rgba(255,255,255,.4); color: #fff;
-    }
-    .cta-section .btn-ghost:hover { background: rgba(255,255,255,.15); border-color: white; }
+    /* ═══════════════ 主题：极光 ═══════════════ */
+    .t-aurora{background:#050008;color:#e0d6f5;font-family:-apple-system,'Inter',sans-serif;}
+    .t-aurora .aurora-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .t-aurora .aurora-layer{position:absolute;border-radius:50%;filter:blur(80px);opacity:.55;animation:floatAurora 12s ease-in-out infinite;}
+    .t-aurora .aur-1{width:70vw;height:50vh;left:-10%;top:-5%;background:radial-gradient(ellipse,#7b2fff,transparent 70%);animation-duration:14s;}
+    .t-aurora .aur-2{width:60vw;height:45vh;right:-10%;top:10%;background:radial-gradient(ellipse,#00d2ff,transparent 70%);animation-duration:10s;animation-delay:-3s;}
+    .t-aurora .aur-3{width:55vw;height:55vh;left:20%;top:30%;background:radial-gradient(ellipse,#ff2eb3,transparent 70%);animation-duration:16s;animation-delay:-7s;opacity:.3;}
+    .t-aurora .aur-4{width:40vw;height:40vh;right:10%;bottom:10%;background:radial-gradient(ellipse,#00ffb3,transparent 70%);animation-duration:11s;animation-delay:-2s;opacity:.35;}
+    @keyframes floatAurora{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-6%) scale(1.05);}}
+    .t-aurora .aur-section{position:relative;z-index:1;}
+    .t-aurora .aur-navbar{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:1rem 2.5rem;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(5,0,8,.7);backdrop-filter:blur(16px);}
+    .t-aurora .aur-logo{font-size:1.2rem;font-weight:800;letter-spacing:.05em;background:linear-gradient(90deg,#a855f7,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .t-aurora .aur-nav-links{display:flex;gap:2rem;}
+    .t-aurora .aur-nav-links a{color:rgba(224,214,245,.6);text-decoration:none;font-size:.875rem;transition:color .2s;}
+    .t-aurora .aur-nav-links a:hover{color:#e0d6f5;}
+    .t-aurora .aur-btn{display:inline-block;padding:.6rem 1.5rem;border-radius:9999px;font-size:.875rem;font-weight:600;text-decoration:none;cursor:pointer;transition:.25s;border:none;}
+    .t-aurora .aur-btn-ghost{border:1px solid rgba(255,255,255,.2);color:#e0d6f5;background:rgba(255,255,255,.05);}
+    .t-aurora .aur-btn-ghost:hover{background:rgba(255,255,255,.1);}
+    .t-aurora .aur-btn-primary{background:linear-gradient(135deg,#a855f7,#06b6d4);color:#fff;box-shadow:0 0 24px rgba(168,85,247,.4);}
+    .t-aurora .aur-btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 36px rgba(168,85,247,.6);}
+    .t-aurora .aur-hero{min-height:90vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 2rem;gap:2rem;}
+    .t-aurora .aur-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem 1rem;border-radius:9999px;border:1px solid rgba(168,85,247,.4);background:rgba(168,85,247,.1);font-size:.8rem;color:rgba(224,214,245,.8);}
+    .t-aurora .aur-title{font-size:clamp(2.8rem,7vw,5.5rem);font-weight:900;line-height:1.08;letter-spacing:-.03em;color:#fff;margin:0;}
+    .t-aurora .aur-gradient-text{background:linear-gradient(90deg,#a855f7 0%,#06b6d4 50%,#a855f7 100%);background-size:200% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 4s linear infinite;}
+    @keyframes shimmer{to{background-position:200% 0}}
+    .t-aurora .aur-sub{max-width:580px;font-size:1.05rem;line-height:1.75;color:rgba(224,214,245,.6);}
+    .t-aurora .aur-btns{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;}
+    .t-aurora .aur-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;}
+    .t-aurora .aur-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:1.5rem;backdrop-filter:blur(12px);transition:.25s;}
+    .t-aurora .aur-card:hover{background:rgba(255,255,255,.07);transform:translateY(-2px);}
+    .t-aurora .aur-card-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:.875rem;background:linear-gradient(135deg,rgba(168,85,247,.3),rgba(6,182,212,.2));}
+    .t-aurora .aur-card-title{font-size:.95rem;font-weight:700;color:#e0d6f5;margin-bottom:.4rem;}
+    .t-aurora .aur-card-desc{font-size:.82rem;color:rgba(224,214,245,.5);line-height:1.65;}
+    .t-aurora .aur-stats{display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;}
+    .t-aurora .aur-stat-item{text-align:center;}
+    .t-aurora .aur-stat-num{font-size:2.5rem;font-weight:800;line-height:1;background:linear-gradient(135deg,#a855f7,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .t-aurora .aur-stat-lbl{font-size:.82rem;color:rgba(224,214,245,.5);margin-top:.4rem;}
+    .t-aurora .aur-cta{text-align:center;padding:6rem 2rem;background:linear-gradient(135deg,rgba(168,85,247,.12),rgba(6,182,212,.08));border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);}
+    .t-aurora .aur-cta-title{font-size:2.2rem;font-weight:800;color:#fff;margin-bottom:.75rem;}
+    .t-aurora .aur-cta-sub{color:rgba(224,214,245,.6);font-size:1rem;margin-bottom:2rem;}
+    .t-aurora .aur-footer{padding:1.75rem 2.5rem;text-align:center;font-size:.8rem;color:rgba(224,214,245,.3);border-top:1px solid rgba(255,255,255,.06);}
+    .t-aurora .aur-section-wrap{max-width:1100px;margin:0 auto;padding:5rem 2rem;}
+    .t-aurora .aur-section-label{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.12em;color:#a855f7;text-transform:uppercase;margin-bottom:.5rem;}
+    .t-aurora .aur-section-title{font-size:clamp(1.6rem,3vw,2.5rem);font-weight:800;color:#fff;margin-bottom:1rem;}
+    @media(max-width:640px){.t-aurora .aur-navbar{padding:.75rem 1.25rem;}.t-aurora .aur-nav-links{display:none;}}
+
+    /* ═══════════════ 主题：商务 ═══════════════ */
+    .t-enterprise{background:#0c1117;color:#c0c8d4;font-family:'Inter',-apple-system,sans-serif;}
+    .t-enterprise .ent-navbar{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:.9rem 3rem;border-bottom:1px solid rgba(192,200,212,.08);background:rgba(12,17,23,.95);backdrop-filter:blur(8px);}
+    .t-enterprise .ent-logo{display:flex;align-items:center;gap:.6rem;font-size:1.05rem;font-weight:700;color:#e8ecf0;letter-spacing:-.01em;}
+    .t-enterprise .ent-logo-icon{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#b8860b,#e4ab00);display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#0c1117;font-weight:800;}
+    .t-enterprise .ent-nav-links{display:flex;gap:2rem;}
+    .t-enterprise .ent-nav-links a{color:rgba(192,200,212,.6);text-decoration:none;font-size:.875rem;transition:color .15s;}
+    .t-enterprise .ent-nav-links a:hover{color:#c0c8d4;}
+    .t-enterprise .ent-btn{display:inline-block;padding:.55rem 1.4rem;border-radius:4px;font-size:.875rem;font-weight:600;text-decoration:none;cursor:pointer;transition:.15s;border:none;}
+    .t-enterprise .ent-btn-ghost{border:1px solid rgba(192,200,212,.2);color:#c0c8d4;background:transparent;}
+    .t-enterprise .ent-btn-ghost:hover{border-color:rgba(192,200,212,.5);}
+    .t-enterprise .ent-btn-primary{background:linear-gradient(135deg,#b8860b,#d4a017);color:#0c1117;box-shadow:0 0 20px rgba(184,134,11,.25);}
+    .t-enterprise .ent-btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 28px rgba(212,160,23,.4);}
+    .t-enterprise .ent-hero{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;max-width:1200px;margin:0 auto;padding:7rem 3rem 5rem;}
+    .t-enterprise .ent-hero-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .875rem;border-radius:3px;background:rgba(184,134,11,.1);border:1px solid rgba(184,134,11,.25);font-size:.75rem;font-weight:600;letter-spacing:.08em;color:#d4a017;text-transform:uppercase;margin-bottom:1.5rem;}
+    .t-enterprise .ent-hero-title{font-size:clamp(2rem,4vw,3.2rem);font-weight:800;line-height:1.18;letter-spacing:-.02em;color:#e8ecf0;margin:0 0 1.25rem;}
+    .t-enterprise .ent-gold{background:linear-gradient(90deg,#b8860b,#e4ab00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .t-enterprise .ent-hero-sub{font-size:.975rem;color:rgba(192,200,212,.6);line-height:1.75;margin-bottom:2rem;}
+    .t-enterprise .ent-btns{display:flex;gap:.875rem;flex-wrap:wrap;}
+    .t-enterprise .ent-dashboard-mock{background:#111820;border:1px solid rgba(192,200,212,.1);border-radius:8px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+    .t-enterprise .ent-dash-bar{background:rgba(255,255,255,.03);padding:.65rem 1rem;border-bottom:1px solid rgba(192,200,212,.08);display:flex;align-items:center;gap:.5rem;}
+    .t-enterprise .ent-dash-dot{width:8px;height:8px;border-radius:50%;background:rgba(192,200,212,.15);}
+    .t-enterprise .ent-dash-body{padding:1.25rem;}
+    .t-enterprise .ent-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1rem;}
+    .t-enterprise .ent-mini-stat{background:rgba(255,255,255,.03);border:1px solid rgba(192,200,212,.06);border-radius:6px;padding:.75rem;}
+    .t-enterprise .ent-mini-stat-num{font-size:1.25rem;font-weight:700;color:#e8ecf0;}
+    .t-enterprise .ent-mini-stat-lbl{font-size:.72rem;color:rgba(192,200,212,.4);margin-top:.2rem;}
+    .t-enterprise .ent-msg-preview{display:flex;flex-direction:column;gap:.5rem;}
+    .t-enterprise .ent-msg-row{display:flex;gap:.6rem;align-items:flex-start;background:rgba(255,255,255,.02);border-radius:5px;padding:.5rem .6rem;}
+    .t-enterprise .ent-msg-ava{width:24px;height:24px;border-radius:4px;background:linear-gradient(135deg,#b8860b,#e4ab00);flex-shrink:0;}
+    .t-enterprise .ent-msg-text{font-size:.75rem;color:rgba(192,200,212,.65);}
+    .t-enterprise .ent-msg-name{font-size:.68rem;color:rgba(192,200,212,.4);margin-bottom:.15rem;}
+    .t-enterprise .ent-section{max-width:1200px;margin:0 auto;padding:5rem 3rem;}
+    .t-enterprise .ent-section-label{font-size:.72rem;font-weight:700;letter-spacing:.14em;color:#d4a017;text-transform:uppercase;margin-bottom:.5rem;}
+    .t-enterprise .ent-section-title{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:800;color:#e8ecf0;margin-bottom:1rem;letter-spacing:-.02em;}
+    .t-enterprise .ent-feat-table{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:rgba(192,200,212,.08);border:1px solid rgba(192,200,212,.08);border-radius:6px;overflow:hidden;}
+    .t-enterprise .ent-feat-cell{background:#0c1117;padding:1.5rem;transition:.15s;}
+    .t-enterprise .ent-feat-cell:hover{background:#111820;}
+    .t-enterprise .ent-feat-icon{font-size:1.5rem;margin-bottom:.6rem;}
+    .t-enterprise .ent-feat-name{font-size:.9rem;font-weight:700;color:#e8ecf0;margin-bottom:.35rem;}
+    .t-enterprise .ent-feat-desc{font-size:.8rem;color:rgba(192,200,212,.5);line-height:1.6;}
+    .t-enterprise .ent-stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:rgba(192,200,212,.08);border:1px solid rgba(192,200,212,.08);border-radius:6px;overflow:hidden;margin-top:4rem;}
+    .t-enterprise .ent-stat-cell{background:#0c1117;padding:1.75rem;text-align:center;}
+    .t-enterprise .ent-stat-num{font-size:2.2rem;font-weight:800;line-height:1;background:linear-gradient(135deg,#b8860b,#e4ab00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .t-enterprise .ent-stat-lbl{font-size:.78rem;color:rgba(192,200,212,.4);margin-top:.4rem;letter-spacing:.05em;}
+    .t-enterprise .ent-cta{background:#111820;border-top:1px solid rgba(192,200,212,.08);border-bottom:1px solid rgba(192,200,212,.08);}
+    .t-enterprise .ent-cta-inner{max-width:1200px;margin:0 auto;padding:5rem 3rem;display:flex;align-items:center;justify-content:space-between;gap:3rem;flex-wrap:wrap;}
+    .t-enterprise .ent-cta-title{font-size:1.9rem;font-weight:800;color:#e8ecf0;letter-spacing:-.02em;}
+    .t-enterprise .ent-cta-sub{font-size:.95rem;color:rgba(192,200,212,.5);margin-top:.5rem;}
+    .t-enterprise .ent-footer{max-width:1200px;margin:0 auto;padding:1.5rem 3rem;display:flex;align-items:center;justify-content:space-between;font-size:.8rem;color:rgba(192,200,212,.3);flex-wrap:wrap;gap:.5rem;}
+    .t-enterprise .ent-footer a{color:rgba(192,200,212,.45);text-decoration:none;}
+    @media(max-width:900px){.t-enterprise .ent-hero{grid-template-columns:1fr;padding:4rem 1.5rem;}.t-enterprise .ent-navbar{padding:.75rem 1.25rem;}.t-enterprise .ent-nav-links{display:none;}.t-enterprise .ent-section{padding-left:1.5rem;padding-right:1.5rem;}}
   </style>
 </head>
 <body>
 
-<!-- ── 导航栏 ──────────────────────────────────────────────────── -->
+<div id="home-init-loader">
+  <div class="spinner"></div>
+  <span style="font-size:.85rem;color:var(--text-muted)">正在加载…</span>
+</div>
+
+<div id="home-root" style="opacity:0;transition:opacity .3s"></div>
+<div id="toast-container"></div>
+
+<script src="/assets/js/common.js"></script>
+<script>
+'use strict';
+
+/* ════════════════════════════════════════════════════════
+   主题渲染函数 — 每个主题的 render(cfg) 返回完整 HTML
+   ════════════════════════════════════════════════════════ */
+const HOME_THEMES = {
+
+  /* ── 默认主题 ── */
+  default: {
+    label: '默认',
+    render(cfg) {
+      const n = cfg.app_name || '极聊';
+      return `
+<div class="t-default">
 <nav class="home-navbar" id="navbar">
-  <div class="home-logo">
-    <span class="home-logo-icon">极</span>
-    极聊
-  </div>
-  <div class="home-nav-links">
-    <a href="#features">功能特性</a>
-    <a href="#tech">技术栈</a>
-    <a href="#deploy">快速部署</a>
-  </div>
+  <div class="home-logo"><span class="home-logo-icon">极</span>${n}</div>
+  <div class="home-nav-links"><a href="#d-features">功能</a><a href="#d-tech">技术栈</a><a href="#d-deploy">部署</a></div>
   <div style="display:flex;gap:.75rem;align-items:center">
-    <button class="btn-icon js-theme-toggle" title="切换主题" aria-label="切换主题">🌙</button>
+    <button class="btn-icon js-theme-toggle" title="切换主题">🌙</button>
     <a href="/auth.html" class="btn btn-ghost btn-sm">登录</a>
     <a href="/auth.html?tab=register" class="btn btn-primary btn-sm">立即体验</a>
   </div>
 </nav>
-
-<!-- ── Hero 区域 ───────────────────────────────────────────────── -->
 <section class="home-hero hero-gradient">
   <div>
-    <p class="section-label" style="margin-bottom:.75rem">🚀 商用级即时通讯解决方案</p>
-    <h1 class="home-hero-title">
-      <span class="gradient-text">极致轻量</span><br/>
-      即开即用的聊天系统
-    </h1>
-    <p class="home-hero-subtitle" style="margin:1.25rem auto 0">
-      基于 PHP + WebSocket 构建，支持实时群聊/私聊、文件传输、管理后台，
-      可在宝塔面板上<strong>一键部署</strong>，无需复杂运维配置。
-    </p>
+    <p class="section-label" style="margin-bottom:.75rem">🚀 即时通讯解决方案</p>
+    <h1 class="home-hero-title"><span class="gradient-text">极致轻量</span><br/>即开即用的聊天系统</h1>
+    <p class="home-hero-subtitle" style="margin:1.25rem auto 0">基于 PHP + WebSocket 构建，支持实时群聊/私聊、文件传输、管理后台，可在宝塔面板上<strong>一键部署</strong>，无需复杂运维配置。</p>
   </div>
-
   <div class="home-hero-btns">
-    <a href="/auth.html?tab=register" class="btn btn-primary btn-lg">
-      ✨ 立即体验
-    </a>
-    <a href="/install/" class="btn btn-ghost btn-lg">
-      📦 开始安装
-    </a>
+    <a href="/auth.html?tab=register" class="btn btn-primary btn-lg">✨ 立即体验</a>
+    <a href="/install/" class="btn btn-ghost btn-lg">📦 开始安装</a>
   </div>
-
-  <!-- 模拟聊天截图 -->
   <div class="hero-screenshot">
-    <div class="mock-bar">
-      <span class="mock-dot r"></span>
-      <span class="mock-dot y"></span>
-      <span class="mock-dot g"></span>
-      <span style="margin-left:.5rem;font-size:.78rem;color:var(--text-muted)">综合群 · 在线 128 人</span>
-    </div>
+    <div class="mock-bar"><span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span><span style="margin-left:.5rem;font-size:.78rem;color:var(--text-muted)">综合群 · 在线 128 人</span></div>
     <div class="mock-chat-preview">
-      <div class="mock-msg">
-        <div class="mock-avatar" style="background:#22c55e"></div>
-        <div>
-          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">小明 · 群主</div>
-          <div class="mock-bubble">欢迎加入极聊！这里是综合群 👋</div>
-        </div>
-      </div>
-      <div class="mock-msg">
-        <div class="mock-avatar" style="background:#f97316"></div>
-        <div>
-          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">小红</div>
-          <div class="mock-bubble">哇，界面很好看！支持发图片吗？📷</div>
-        </div>
-      </div>
-      <div class="mock-msg right">
-        <div class="mock-avatar" style="background:#4f73f8"></div>
-        <div style="align-items:flex-end;display:flex;flex-direction:column;gap:.2rem">
-          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem;text-align:right">我</div>
-          <div class="mock-bubble">当然！还支持 @提及、引用回复和搜索历史 😄</div>
-        </div>
-      </div>
-      <div class="mock-msg">
-        <div class="mock-avatar" style="background:#a855f7"></div>
-        <div>
-          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">管理员 · <span style="color:var(--primary)">管理员</span></div>
-          <div class="mock-bubble">📢 群公告：请文明交流，祝大家使用愉快！</div>
-        </div>
-      </div>
+      <div class="mock-msg"><div class="mock-avatar" style="background:#22c55e"></div><div><div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">小明 · 群主</div><div class="mock-bubble">欢迎加入${n}！这里是综合群 👋</div></div></div>
+      <div class="mock-msg"><div class="mock-avatar" style="background:#f97316"></div><div><div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">小红</div><div class="mock-bubble">哇，界面很好看！支持发图片吗？📷</div></div></div>
+      <div class="mock-msg right"><div class="mock-avatar" style="background:#4f73f8"></div><div style="align-items:flex-end;display:flex;flex-direction:column"><div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem;text-align:right">我</div><div class="mock-bubble">当然！还支持 @提及、引用回复和搜索历史 😄</div></div></div>
     </div>
   </div>
-
-  <!-- 数据统计 -->
   <div class="stat-row">
-    <div class="stat-item"><div class="stat-num">99999</div><div class="stat-lbl">支持账号上限</div></div>
-    <div class="stat-item"><div class="stat-num">9999</div><div class="stat-lbl">群组上限</div></div>
-    <div class="stat-item"><div class="stat-num">&lt;20ms</div><div class="stat-lbl">WebSocket 延迟</div></div>
+    <div class="stat-item"><div class="stat-num">99999</div><div class="stat-lbl">账号上限</div></div>
+    <div class="stat-item"><div class="stat-num">&lt;20ms</div><div class="stat-lbl">WS 延迟</div></div>
     <div class="stat-item"><div class="stat-num">MIT</div><div class="stat-lbl">开源协议</div></div>
   </div>
 </section>
-
-<!-- ── 功能特性 ─────────────────────────────────────────────────── -->
-<section class="home-features" id="features">
-  <div class="text-center">
-    <p class="section-label">核心功能</p>
-    <h2 class="section-title">开箱即用的全栈功能</h2>
-    <p style="color:var(--text-secondary);margin-top:.75rem;font-size:.95rem">
-      覆盖即时通讯的所有核心场景，从群聊到私聊，从文件传输到管理后台
-    </p>
-  </div>
-
+<section class="home-features" id="d-features">
+  <div class="text-center"><p class="section-label">核心功能</p><h2 class="section-title">开箱即用的全栈功能</h2></div>
   <div class="home-features-grid">
-    <div class="feature-card">
-      <div class="feature-icon">⚡</div>
-      <h3>WebSocket 实时通信</h3>
-      <p>基于 Workerman 实现全双工通信，消息毫秒级推送，支持心跳保活与断线自动重连。</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">💬</div>
-      <h3>群聊 & 私聊</h3>
-      <p>支持最多 9999 个群组，每群多达 500 人；私聊支持多设备消息同步，历史记录自动加载。</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📁</div>
-      <h3>TXT 持久化存储</h3>
-      <p>消息以 JSON 行格式写入 TXT 文件，按日期自动分片归档，支持关键词全文检索。</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🛡️</div>
-      <h3>完善安全防护</h3>
-      <p>IP 限流、登录锁定、滑块验证码、CSRF 防护、文件类型白名单，多层防御体系。</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">👑</div>
-      <h3>群组精细化权限</h3>
-      <p>群主/管理员/成员三级角色；禁言、踢人、黑名单、加群审批；自定义群头衔。</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🎨</div>
-      <h3>管理后台全定制</h3>
-      <p>独立管理后台，可配置 SMTP 邮件、手机号验证、全站背景图/视频、自定义 CSS。</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📱</div>
-      <h3>全端响应式适配</h3>
-      <p>移动端长按呼出操作菜单，支持手势返回；PC/平板/手机三端布局自动切换。</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🔍</div>
-      <h3>消息搜索 & 精华</h3>
-      <p>在会话内按关键词搜索最近 30 天历史消息；支持消息置顶与精华标记。</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🚀</div>
-      <h3>宝塔一键部署</h3>
-      <p>提供图文部署手册，从建站到 WebSocket 服务守护，每一步均有截图级说明。</p>
-    </div>
+    <div class="feature-card"><div class="feature-icon">⚡</div><h3>WebSocket 实时通信</h3><p>Workerman 全双工，毫秒级推送，心跳保活，断线自动重连。</p></div>
+    <div class="feature-card"><div class="feature-icon">💬</div><h3>群聊 & 私聊</h3><p>多群组，私聊多设备同步，历史记录自动加载。</p></div>
+    <div class="feature-card"><div class="feature-icon">📁</div><h3>持久化存储</h3><p>JSON 行格式按日分片归档，支持关键词全文检索。</p></div>
+    <div class="feature-card"><div class="feature-icon">🛡️</div><h3>完善安全防护</h3><p>IP 限流、登录锁定、滑块验证码、CSRF 防护。</p></div>
+    <div class="feature-card"><div class="feature-icon">👑</div><h3>精细化权限</h3><p>三级角色权限，禁言、踢人、加群审批完整实现。</p></div>
+    <div class="feature-card"><div class="feature-icon">📱</div><h3>全端响应式</h3><p>PC/平板/手机三端自动适配，移动端手势支持。</p></div>
   </div>
 </section>
-
-<!-- ── 技术栈 ────────────────────────────────────────────────────── -->
-<section id="tech" style="padding:4rem 2rem;background:var(--bg-secondary)">
+<section id="d-tech" style="padding:4rem 2rem;background:var(--bg-secondary)">
   <div class="text-center" style="max-width:700px;margin:0 auto">
-    <p class="section-label">技术栈</p>
-    <h2 class="section-title">现代可靠的技术选型</h2>
-    <p style="color:var(--text-secondary);margin-top:.75rem">
-      无重型框架依赖，代码清晰可读，适合二次开发与定制化部署。
-    </p>
-    <div class="tech-stack">
-      <span class="tech-tag">PHP 7.4+</span>
-      <span class="tech-tag">MySQL 5.7+</span>
-      <span class="tech-tag">Workerman 4.x</span>
-      <span class="tech-tag">WebSocket</span>
-      <span class="tech-tag">HTML5 / CSS3</span>
-      <span class="tech-tag">Vanilla JS</span>
-      <span class="tech-tag">Nginx</span>
-      <span class="tech-tag">Supervisor</span>
-      <span class="tech-tag">宝塔面板</span>
-    </div>
+    <p class="section-label">技术栈</p><h2 class="section-title">现代可靠的技术选型</h2>
+    <div class="tech-stack">${['PHP 7.4+','MySQL 5.7+','Workerman 4.x','WebSocket','HTML5','Vanilla JS','Nginx','宝塔面板'].map(t=>`<span class="tech-tag">${t}</span>`).join('')}</div>
   </div>
 </section>
-
-<!-- ── 快速部署 ────────────────────────────────────────────────── -->
-<section id="deploy" style="padding:5rem 2rem;max-width:900px;margin:0 auto">
-  <div class="text-center">
-    <p class="section-label">快速上手</p>
-    <h2 class="section-title">3 步完成部署</h2>
-  </div>
+<section id="d-deploy" style="padding:5rem 2rem;max-width:900px;margin:0 auto">
+  <div class="text-center"><p class="section-label">快速上手</p><h2 class="section-title">3 步完成部署</h2></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;margin-top:3rem">
-    <div class="card" style="text-align:center">
-      <div style="font-size:2.5rem;margin-bottom:1rem">📦</div>
-      <h3 class="font-bold" style="margin-bottom:.5rem">1. 上传源码</h3>
-      <p class="text-sm" style="color:var(--text-secondary)">通过宝塔文件管理或 SFTP 上传源码包，在网站根目录解压</p>
-    </div>
-    <div class="card" style="text-align:center">
-      <div style="font-size:2.5rem;margin-bottom:1rem">🔧</div>
-      <h3 class="font-bold" style="margin-bottom:.5rem">2. 访问安装向导</h3>
-      <p class="text-sm" style="color:var(--text-secondary)">访问 <code style="background:var(--bg-input);padding:.15rem .4rem;border-radius:4px">/install/</code> 按提示完成数据库配置</p>
-    </div>
-    <div class="card" style="text-align:center">
-      <div style="font-size:2.5rem;margin-bottom:1rem">🚀</div>
-      <h3 class="font-bold" style="margin-bottom:.5rem">3. 启动 WebSocket</h3>
-      <p class="text-sm" style="color:var(--text-secondary)">通过 Supervisor 守护 WS 进程，Nginx 配置反向代理即可</p>
-    </div>
+    <div class="card" style="text-align:center"><div style="font-size:2.5rem;margin-bottom:1rem">📦</div><h3 class="font-bold" style="margin-bottom:.5rem">1. 上传源码</h3><p class="text-sm" style="color:var(--text-secondary)">宝塔或 SFTP 上传，网站根目录解压</p></div>
+    <div class="card" style="text-align:center"><div style="font-size:2.5rem;margin-bottom:1rem">🔧</div><h3 class="font-bold" style="margin-bottom:.5rem">2. 安装向导</h3><p class="text-sm" style="color:var(--text-secondary)">访问 /install/ 完成数据库配置</p></div>
+    <div class="card" style="text-align:center"><div style="font-size:2.5rem;margin-bottom:1rem">🚀</div><h3 class="font-bold" style="margin-bottom:.5rem">3. 启动 WebSocket</h3><p class="text-sm" style="color:var(--text-secondary)">Supervisor 守护 + Nginx 反代即可</p></div>
   </div>
-  <div style="text-align:center;margin-top:2.5rem">
-    <a href="/install/" class="btn btn-primary btn-lg">开始安装向导 →</a>
-    <a href="#" class="btn btn-ghost btn-lg" style="margin-left:1rem" onclick="document.querySelector('#readme-section')?.scrollIntoView()">查看部署手册</a>
-  </div>
+  <div style="text-align:center;margin-top:2.5rem"><a href="/install/" class="btn btn-primary btn-lg">开始安装向导 →</a></div>
 </section>
-
-<!-- ── CTA ───────────────────────────────────────────────────────── -->
 <section class="cta-section">
   <p class="section-label" style="color:rgba(255,255,255,.7)">马上开始</p>
-  <h2 class="section-title">准备好体验极聊了吗？</h2>
-  <p>完全免费开源，无需许可证，立即部署属于你的即时通讯系统</p>
+  <h2 class="section-title">准备好体验${n}了吗？</h2>
+  <p>完全免费开源，无需许可证，立即部署你的即时通讯系统</p>
   <div style="display:flex;gap:1rem;justify-content:center;margin-top:2rem;flex-wrap:wrap">
-    <a href="/auth.html?tab=register" class="btn btn-primary btn-lg" style="background:white;color:var(--primary)">立即注册体验</a>
+    <a href="/auth.html?tab=register" class="btn btn-primary btn-lg" style="background:white;color:var(--primary)">立即注册</a>
     <a href="/install/" class="btn btn-ghost btn-lg">部署私有版本</a>
   </div>
 </section>
-
-<!-- ── 页脚 ─────────────────────────────────────────────────────── -->
 <footer class="home-footer">
-  <p>© 2024–2026 极聊 &middot; 基于 PHP + WebSocket &middot; 宝塔面板友好部署</p>
-  <p style="margin-top:.5rem">
-    <a href="/auth.html">登录</a> &nbsp;·&nbsp;
-    <a href="/auth.html?tab=register">注册</a> &nbsp;·&nbsp;
-    <a href="/install/">安装</a> &nbsp;·&nbsp;
-    <a href="/admin.html">管理后台</a>
-  </p>
+  <p>© 2024–2026 ${n} · PHP + WebSocket · 宝塔面板友好部署</p>
+  <p style="margin-top:.5rem"><a href="/auth.html">登录</a> &nbsp;·&nbsp; <a href="/auth.html?tab=register">注册</a> &nbsp;·&nbsp; <a href="/admin.html">管理后台</a></p>
 </footer>
+</div>`;
+    },
+    init() {
+      window.addEventListener('scroll', () => {
+        const nb = document.getElementById('navbar');
+        if (nb) nb.style.boxShadow = window.scrollY > 10 ? 'var(--shadow-md)' : 'none';
+      });
+    }
+  },
 
-<div id="toast-container"></div>
-<script src="/assets/js/common.js"></script>
-<script>
-  // 导航栏滚动阴影
-  window.addEventListener('scroll', () => {
-    document.getElementById('navbar').style.boxShadow =
-      window.scrollY > 10 ? 'var(--shadow-md)' : 'none';
+  /* ── 科技主题 ── */
+  tech: {
+    label: '科技感',
+    render(cfg) {
+      const n = cfg.app_name || '极聊';
+      const tags = ['PHP 7.4+','MySQL 5.7+','Workerman 4.x','WebSocket','HTML5','CSS3','Vanilla JS','Nginx','Supervisor','宝塔面板'];
+      return `
+<div class="t-tech">
+  <div class="tech-grid-bg"></div><div class="tech-glow"></div>
+  <nav class="tech-navbar">
+    <div class="tech-logo">[ ${n} ]</div>
+    <div class="tech-nav-links"><a href="#t-features">功能</a><a href="#t-stack">技术栈</a><a href="#t-deploy">部署</a></div>
+    <div style="display:flex;gap:.6rem;align-items:center">
+      <button class="js-theme-toggle" style="background:none;border:none;cursor:pointer;font-size:1rem">🌙</button>
+      <a href="/auth.html" class="tech-btn tech-btn-outline">登录</a>
+      <a href="/auth.html?tab=register" class="tech-btn tech-btn-primary">立即体验</a>
+    </div>
+  </nav>
+  <div class="tech-section">
+    <div class="tech-hero">
+      <div class="tech-badge">// REALTIME · CHAT · SYSTEM</div>
+      <h1 class="tech-hero-title"><span class="tech-neon">${n}</span><br/>即时通讯引擎</h1>
+      <p class="tech-hero-sub">基于 PHP + WebSocket / Workerman 的高性能即时通讯系统，低延迟、高可靠，宝塔一键部署。</p>
+      <div class="tech-btns">
+        <a href="/auth.html?tab=register" class="tech-btn tech-btn-primary">启动系统 &gt;&gt;</a>
+        <a href="/install/" class="tech-btn tech-btn-outline">/ install</a>
+      </div>
+      <div class="tech-terminal">
+        <div class="terminal-bar">
+          <span class="terminal-dot" style="background:#f87171"></span>
+          <span class="terminal-dot" style="background:#fbbf24"></span>
+          <span class="terminal-dot" style="background:#34d399"></span>
+          <span style="margin-left:.5rem;font-size:.72rem;color:rgba(0,246,255,.5)">${n} — ws@localhost</span>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-line"><span class="t-prompt">$</span><span class="t-cmd"> php server/ws/server.php start -d</span></div>
+          <span class="t-out">Workerman[server.php] start in DAEMON mode</span>
+          <span class="t-out">----------------------------------------</span>
+          <span class="t-out">Workerman version:4.x  PHP version:8.1</span>
+          <span class="t-out" style="color:#34d399">[OK] ChatServer  Listen &gt; websocket://0.0.0.0:9501</span>
+          <span class="t-out" style="color:#34d399">[OK] Workers started successfully.</span>
+          <div class="terminal-line" style="margin-top:.5rem"><span class="t-prompt">$</span><span class="t-cmd"> </span><span class="t-cursor"></span></div>
+        </div>
+      </div>
+      <div class="tech-stats">
+        <div class="tech-stat"><div class="tech-stat-num">&lt;20ms</div><div class="tech-stat-lbl">WS延迟</div></div>
+        <div class="tech-stat"><div class="tech-stat-num">99999</div><div class="tech-stat-lbl">账号上限</div></div>
+        <div class="tech-stat"><div class="tech-stat-num">9999</div><div class="tech-stat-lbl">群组上限</div></div>
+        <div class="tech-stat"><div class="tech-stat-num">MIT</div><div class="tech-stat-lbl">开源协议</div></div>
+      </div>
+    </div>
+    <div class="section-wrap" id="t-features">
+      <p class="tech-section-label">// FEATURES</p><h2 class="tech-section-title">核心能力矩阵</h2>
+      <div class="tech-features-grid">
+        <div class="tech-feat-card"><div class="tech-feat-icon">⚡</div><div class="tech-feat-title">全双工实时通信</div><div class="tech-feat-desc">Workerman 驱动，毫秒级推送，心跳保活，断线队列重发。</div></div>
+        <div class="tech-feat-card"><div class="tech-feat-icon">💬</div><div class="tech-feat-title">群聊 & 私聊</div><div class="tech-feat-desc">多群组多设备同步，@提及、引用回复，消息撤回。</div></div>
+        <div class="tech-feat-card"><div class="tech-feat-icon">🛡️</div><div class="tech-feat-title">安全防护层</div><div class="tech-feat-desc">IP 限流、登录锁定、滑块验证码、CSRF 防护。</div></div>
+        <div class="tech-feat-card"><div class="tech-feat-icon">📁</div><div class="tech-feat-title">文件 & 存储</div><div class="tech-feat-desc">TXT 持久化，按日分片，关键词全文检索。</div></div>
+        <div class="tech-feat-card"><div class="tech-feat-icon">👑</div><div class="tech-feat-title">权限管理</div><div class="tech-feat-desc">三级角色 ACL：群主 / 管理 / 成员，加群审批，黑名单。</div></div>
+        <div class="tech-feat-card"><div class="tech-feat-icon">🎨</div><div class="tech-feat-title">主题 & 定制</div><div class="tech-feat-desc">多套皮肤，自定义 CSS / HTML，主页风格后台切换。</div></div>
+      </div>
+    </div>
+    <div class="section-wrap" id="t-stack">
+      <p class="tech-section-label">// TECH STACK</p><h2 class="tech-section-title">技术栈</h2>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap">${tags.map(t=>`<span style="padding:.4rem .9rem;border:1px solid rgba(0,246,255,.2);border-radius:3px;font-size:.78rem;color:#00f6ff;background:rgba(0,246,255,.05)">${t}</span>`).join('')}</div>
+    </div>
+    <div class="section-wrap" id="t-deploy">
+      <p class="tech-section-label">// QUICK DEPLOY</p><h2 class="tech-section-title">3 步完成部署</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:rgba(0,246,255,.1);border:1px solid rgba(0,246,255,.1);border-radius:6px;overflow:hidden;margin-top:1.5rem">
+        <div style="background:#020b18;padding:1.75rem"><div style="font-size:2rem;margin-bottom:.75rem">📦</div><div style="font-size:.85rem;font-weight:700;color:#e2eaf4;margin-bottom:.4rem">01 — 上传源码</div><div style="font-size:.78rem;color:rgba(201,214,227,.45);font-family:sans-serif">宝塔文件管理或 SFTP 上传，网站根目录解压</div></div>
+        <div style="background:#020b18;padding:1.75rem"><div style="font-size:2rem;margin-bottom:.75rem">🔧</div><div style="font-size:.85rem;font-weight:700;color:#e2eaf4;margin-bottom:.4rem">02 — 安装向导</div><div style="font-size:.78rem;color:rgba(201,214,227,.45);font-family:sans-serif">访问 /install/ 按提示完成数据库初始化</div></div>
+        <div style="background:#020b18;padding:1.75rem"><div style="font-size:2rem;margin-bottom:.75rem">🚀</div><div style="font-size:.85rem;font-weight:700;color:#e2eaf4;margin-bottom:.4rem">03 — 启动服务</div><div style="font-size:.78rem;color:rgba(201,214,227,.45);font-family:sans-serif">Supervisor 守护 WS，Nginx 配置 /ws 反代即可</div></div>
+      </div>
+      <div style="margin-top:2rem;text-align:center"><a href="/install/" class="tech-btn tech-btn-primary" style="font-size:.9rem;padding:.75rem 2rem">/ install &gt;&gt;</a></div>
+    </div>
+    <div class="tech-cta">
+      <div style="max-width:640px;margin:0 auto">
+        <p class="tech-section-label">// READY?</p>
+        <div class="tech-cta-title">立即部署你的<span style="color:#00f6ff">通讯引擎</span></div>
+        <p style="color:rgba(201,214,227,.5);font-size:.9rem;margin:.75rem 0 2rem;font-family:sans-serif">完全免费开源，MIT 协议</p>
+        <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+          <a href="/auth.html?tab=register" class="tech-btn tech-btn-primary">注册体验</a>
+          <a href="/install/" class="tech-btn tech-btn-outline">部署私有</a>
+        </div>
+      </div>
+    </div>
+    <div class="tech-footer">© 2024–2026 ${n} · PHP + WebSocket · MIT License</div>
+  </div>
+</div>`;
+    },
+    init() {}
+  },
+
+  /* ── 极简主题 ── */
+  minimal: {
+    label: '极简主义',
+    render(cfg) {
+      const n = cfg.app_name || '极聊';
+      const feats = [
+        ['实时通信','Workerman WebSocket 全双工，消息毫秒级送达，断线自动重连。'],
+        ['群聊 & 私聊','多群组、私聊历史，@提及、引用回复，消息搜索与精华。'],
+        ['安全防护','IP 限流、滑块验证码、登录锁定、CSRF 防护，多层防御。'],
+        ['文件传输','白名单类型校验，安全上传下载，支持图片预览。'],
+        ['权限管理','群主/管理/成员三级，禁言、踢人、加群审批完整实现。'],
+        ['管理后台','用户群组管理、系统设置、皮肤切换、统计数据一览。'],
+      ];
+      return `
+<div class="t-minimal">
+  <nav class="min-navbar">
+    <div class="min-logo">${n}</div>
+    <div class="min-nav-links"><a href="#m-features">功能</a><a href="#m-tech">技术</a><a href="#m-start">开始</a></div>
+    <div style="display:flex;gap:.75rem;align-items:center">
+      <button class="js-theme-toggle" style="background:none;border:none;cursor:pointer;font-size:1rem">🌙</button>
+      <a href="/auth.html" class="min-btn min-btn-outline">登录</a>
+      <a href="/auth.html?tab=register" class="min-btn min-btn-dark">注册</a>
+    </div>
+  </nav>
+  <div class="min-hero">
+    <div class="min-eyebrow">即时通讯 · 开源 · 免费</div>
+    <h1 class="min-title">最轻量的<br/><em>聊天系统</em></h1>
+    <p class="min-sub">基于 PHP + WebSocket 构建，宝塔面板一键部署，群聊私聊、文件传输、完整管理后台，无需复杂运维。</p>
+    <div class="min-btns">
+      <a href="/auth.html?tab=register" class="min-btn min-btn-dark" style="padding:.75rem 2rem;font-size:1rem">立即体验</a>
+      <a href="/install/" class="min-btn min-btn-outline" style="padding:.75rem 2rem;font-size:1rem">开始安装</a>
+    </div>
+  </div>
+  <div class="min-divider"></div>
+  <div class="min-features" id="m-features">
+    <div class="min-feat-label">功能特性</div>
+    <div class="min-feat-title">为什么选择 ${n}？</div>
+    <div class="min-feat-grid">
+      ${feats.map(([name,desc],i)=>`<div class="min-feat-item"><div class="min-feat-num">0${i+1}</div><div class="min-feat-name">${name}</div><div class="min-feat-desc">${desc}</div></div>`).join('')}
+    </div>
+  </div>
+  <div class="min-divider" id="m-tech"></div>
+  <div class="min-features" style="padding-top:3.5rem">
+    <div class="min-feat-label">技术栈</div>
+    <div class="min-feat-title" style="font-size:1.5rem;margin-bottom:1.5rem">现代可靠的选型</div>
+    <div style="display:flex;gap:.625rem;flex-wrap:wrap">
+      ${['PHP 7.4+','MySQL 5.7+','Workerman 4.x','WebSocket','Vanilla JS','Nginx','宝塔面板'].map(t=>`<span style="padding:.35rem .875rem;border-radius:4px;border:1.5px solid #e0e0e0;font-size:.82rem;font-weight:600;color:#555">${t}</span>`).join('')}
+    </div>
+  </div>
+  <div class="min-cta" id="m-start">
+    <div class="min-cta-title">准备好了吗？</div>
+    <p style="font-size:1rem;margin-bottom:2rem">完全免费，MIT 开源协议，无使用限制</p>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap">
+      <a href="/auth.html?tab=register" class="min-btn min-btn-dark" style="padding:.8rem 2.2rem;font-size:1rem">立即注册体验</a>
+      <a href="/install/" class="min-btn min-btn-outline" style="padding:.8rem 2.2rem;font-size:1rem">部署私有版本</a>
+    </div>
+  </div>
+  <footer class="min-footer">
+    <span>© 2024–2026 ${n}</span>
+    <span><a href="/auth.html">登录</a> · <a href="/auth.html?tab=register">注册</a> · <a href="/admin.html">后台</a></span>
+  </footer>
+</div>`;
+    },
+    init() {}
+  },
+
+  /* ── 极光主题 ── */
+  aurora: {
+    label: '极光',
+    render(cfg) {
+      const n = cfg.app_name || '极聊';
+      const feats = [
+        ['⚡','全双工实时通信','Workerman 驱动，延迟 < 20ms，心跳保活，断线队列重发。'],
+        ['💬','群聊 & 私聊','多群组，私聊历史，@提及、引用回复，消息精华与搜索。'],
+        ['🛡️','安全防护','IP 限流、滑块验证码、CSRF、登录锁定，全方位防御。'],
+        ['👑','权限精细管理','三级角色，加群审批，禁言踢人，来访黑名单一键操作。'],
+        ['🎨','高度可定制','多套皮肤，自定义 CSS/HTML，主页风格后台切换。'],
+        ['🚀','极简部署','宝塔面板图文手册，Supervisor + Nginx 反代，3 步上线。'],
+      ];
+      return `
+<div class="t-aurora">
+  <div class="aurora-bg">
+    <div class="aurora-layer aur-1"></div><div class="aurora-layer aur-2"></div>
+    <div class="aurora-layer aur-3"></div><div class="aurora-layer aur-4"></div>
+  </div>
+  <nav class="aur-section aur-navbar">
+    <div class="aur-logo">${n}</div>
+    <div class="aur-nav-links"><a href="#a-features">功能</a><a href="#a-stats">数据</a><a href="#a-deploy">部署</a></div>
+    <div style="display:flex;gap:.6rem;align-items:center">
+      <button class="js-theme-toggle" style="background:none;border:none;cursor:pointer;font-size:1rem;color:#e0d6f5">🌙</button>
+      <a href="/auth.html" class="aur-btn aur-btn-ghost">登录</a>
+      <a href="/auth.html?tab=register" class="aur-btn aur-btn-primary">立即体验</a>
+    </div>
+  </nav>
+  <div class="aur-section aur-hero">
+    <div class="aur-badge">✨ &nbsp;免费开源 · MIT 协议</div>
+    <h1 class="aur-title">下一代<br/><span class="aur-gradient-text">即时通讯</span><br/>系统</h1>
+    <p class="aur-sub">极致轻量的 PHP WebSocket 聊天平台，群聊私聊、文件传输、管理后台全覆盖，宝塔一键部署即开即用。</p>
+    <div class="aur-btns">
+      <a href="/auth.html?tab=register" class="aur-btn aur-btn-primary" style="padding:.75rem 2rem;font-size:.95rem">✨ 立即体验</a>
+      <a href="/install/" class="aur-btn aur-btn-ghost" style="padding:.75rem 2rem;font-size:.95rem">📦 开始安装</a>
+    </div>
+    <div class="aur-stats">
+      <div class="aur-stat-item"><div class="aur-stat-num">&lt;20ms</div><div class="aur-stat-lbl">消息延迟</div></div>
+      <div class="aur-stat-item"><div class="aur-stat-num">99999</div><div class="aur-stat-lbl">账号上限</div></div>
+      <div class="aur-stat-item"><div class="aur-stat-num">MIT</div><div class="aur-stat-lbl">开源协议</div></div>
+    </div>
+  </div>
+  <div class="aur-section aur-section-wrap" id="a-features">
+    <p class="aur-section-label">核心功能</p><h2 class="aur-section-title">为现代通讯场景而生</h2>
+    <div class="aur-card-grid">
+      ${feats.map(([icon,title,desc])=>`<div class="aur-card"><div class="aur-card-icon">${icon}</div><div class="aur-card-title">${title}</div><div class="aur-card-desc">${desc}</div></div>`).join('')}
+    </div>
+  </div>
+  <div class="aur-section aur-section-wrap" id="a-deploy" style="padding-top:3rem;padding-bottom:3rem;text-align:center">
+    <p class="aur-section-label">快速部署</p><h2 class="aur-section-title">3 步上线 ${n}</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.25rem;margin-top:2rem">
+      <div class="aur-card" style="text-align:center"><div style="font-size:2.5rem;margin-bottom:.75rem">📦</div><div class="aur-card-title">上传源码</div><div class="aur-card-desc">宝塔或 SFTP 上传，网站目录解压</div></div>
+      <div class="aur-card" style="text-align:center"><div style="font-size:2.5rem;margin-bottom:.75rem">🔧</div><div class="aur-card-title">安装向导</div><div class="aur-card-desc">访问 /install/ 完成数据库初始化</div></div>
+      <div class="aur-card" style="text-align:center"><div style="font-size:2.5rem;margin-bottom:.75rem">🚀</div><div class="aur-card-title">启动服务</div><div class="aur-card-desc">Supervisor + Nginx 反代，即刻上线</div></div>
+    </div>
+    <div style="margin-top:2rem"><a href="/install/" class="aur-btn aur-btn-primary" style="padding:.75rem 2.5rem;font-size:.95rem">开始安装向导 →</a></div>
+  </div>
+  <div class="aur-section aur-cta">
+    <div class="aur-cta-title">探索 <span class="aur-gradient-text">${n}</span></div>
+    <div class="aur-cta-sub">完全免费，无需许可证，立即部署属于你的通讯系统</div>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+      <a href="/auth.html?tab=register" class="aur-btn aur-btn-primary" style="padding:.75rem 2rem">立即注册</a>
+      <a href="/install/" class="aur-btn aur-btn-ghost" style="padding:.75rem 2rem">私有部署</a>
+    </div>
+  </div>
+  <div class="aur-section aur-footer">© 2024–2026 ${n} · PHP + WebSocket · MIT License</div>
+</div>`;
+    },
+    init() {}
+  },
+
+  /* ── 商务主题 ── */
+  enterprise: {
+    label: '商务专业',
+    render(cfg) {
+      const n = cfg.app_name || '极聊';
+      const feats = [
+        ['⚡','全双工实时通信','Workerman 驱动 WebSocket，延迟 < 20ms，高可靠心跳保活。'],
+        ['💬','完整通讯体系','多群组 + 私聊，@提及、引用回复、消息精华与关键词搜索。'],
+        ['🛡️','企业级安全','IP 限流、登录锁定、滑块验证、CSRF 防护、文件白名单。'],
+        ['👑','精细权限控制','群主/管理/成员三级 ACL，加群审批，禁言踢人，黑名单。'],
+        ['📊','完善管理后台','用户群组管理、实时统计、系统参数配置、主题皮肤切换。'],
+        ['🚀','快速交付部署','宝塔面板图文手册，Supervisor 守护，Nginx 反代，分钟级上线。'],
+      ];
+      return `
+<div class="t-enterprise">
+  <nav class="ent-navbar">
+    <div class="ent-logo"><div class="ent-logo-icon">极</div>${n}</div>
+    <div class="ent-nav-links"><a href="#e-features">功能</a><a href="#e-deploy">部署</a><a href="/auth.html">登录</a></div>
+    <div style="display:flex;gap:.75rem;align-items:center">
+      <button class="js-theme-toggle" style="background:none;border:none;cursor:pointer;font-size:1rem;color:#c0c8d4">🌙</button>
+      <a href="/auth.html?tab=register" class="ent-btn ent-btn-primary">立即体验</a>
+    </div>
+  </nav>
+  <div class="ent-hero">
+    <div>
+      <div class="ent-hero-badge">✦ 即时通讯解决方案</div>
+      <h1 class="ent-hero-title"><span class="ent-gold">专业可靠</span><br/>的聊天系统</h1>
+      <p class="ent-hero-sub">基于 PHP + WebSocket / Workerman 构建，完整的群聊私聊体系、企业级安全防护与精细化权限管理，宝塔面板极简部署。</p>
+      <div class="ent-btns">
+        <a href="/auth.html?tab=register" class="ent-btn ent-btn-primary" style="padding:.65rem 2rem">立即体验</a>
+        <a href="/install/" class="ent-btn ent-btn-ghost" style="padding:.65rem 2rem">开始部署</a>
+      </div>
+    </div>
+    <div class="ent-dashboard-mock">
+      <div class="ent-dash-bar">
+        <span class="ent-dash-dot"></span><span class="ent-dash-dot"></span><span class="ent-dash-dot"></span>
+        <span style="margin-left:.5rem;font-size:.72rem;color:rgba(192,200,212,.35)">${n} — 管理后台</span>
+      </div>
+      <div class="ent-dash-body">
+        <div class="ent-stat-row">
+          <div class="ent-mini-stat"><div class="ent-mini-stat-num" style="color:#d4a017">1,284</div><div class="ent-mini-stat-lbl">总用户</div></div>
+          <div class="ent-mini-stat"><div class="ent-mini-stat-num">128</div><div class="ent-mini-stat-lbl">在线</div></div>
+          <div class="ent-mini-stat"><div class="ent-mini-stat-num">56</div><div class="ent-mini-stat-lbl">群组</div></div>
+        </div>
+        <div class="ent-msg-preview">
+          <div class="ent-msg-row"><div class="ent-msg-ava"></div><div><div class="ent-msg-name">技术群</div><div class="ent-msg-text">📢 系统已完成最新版本部署，请测试反馈</div></div></div>
+          <div class="ent-msg-row"><div class="ent-msg-ava" style="background:linear-gradient(135deg,#0070ff,#00d2ff)"></div><div><div class="ent-msg-name">市场群</div><div class="ent-msg-text">新版界面很棒！客户反馈非常正面 👍</div></div></div>
+          <div class="ent-msg-row"><div class="ent-msg-ava" style="background:linear-gradient(135deg,#34d399,#059669)"></div><div><div class="ent-msg-name">综合群</div><div class="ent-msg-text">极聊的响应速度真的很快，延迟感觉不到</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="background:#080d13;border-top:1px solid rgba(192,200,212,.06);border-bottom:1px solid rgba(192,200,212,.06)">
+    <div class="ent-section" style="padding-top:2.5rem;padding-bottom:2.5rem">
+      <div class="ent-stats-row" style="margin-top:0">
+        <div class="ent-stat-cell"><div class="ent-stat-num">&lt;20ms</div><div class="ent-stat-lbl">消息延迟</div></div>
+        <div class="ent-stat-cell"><div class="ent-stat-num">99999</div><div class="ent-stat-lbl">账号上限</div></div>
+        <div class="ent-stat-cell"><div class="ent-stat-num">9999</div><div class="ent-stat-lbl">群组上限</div></div>
+        <div class="ent-stat-cell"><div class="ent-stat-num">MIT</div><div class="ent-stat-lbl">开源协议</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="ent-section" id="e-features">
+    <p class="ent-section-label">核心能力</p><h2 class="ent-section-title">全面覆盖通讯场景需求</h2>
+    <div class="ent-feat-table">
+      ${feats.map(([icon,name,desc])=>`<div class="ent-feat-cell"><div class="ent-feat-icon">${icon}</div><div class="ent-feat-name">${name}</div><div class="ent-feat-desc">${desc}</div></div>`).join('')}
+    </div>
+  </div>
+  <div style="background:#080d13" id="e-deploy">
+    <div class="ent-section" style="padding-top:3.5rem;padding-bottom:3.5rem">
+      <p class="ent-section-label">快速上线</p><h2 class="ent-section-title">3 步完成私有化部署</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:rgba(192,200,212,.06);border:1px solid rgba(192,200,212,.06);border-radius:6px;overflow:hidden;margin-top:1.5rem">
+        <div style="background:#080d13;padding:2rem"><div style="font-size:.75rem;font-weight:700;letter-spacing:.12em;color:#d4a017;margin-bottom:.6rem">STEP 01</div><div style="font-size:.95rem;font-weight:700;color:#e8ecf0;margin-bottom:.4rem">上传源码</div><div style="font-size:.82rem;color:rgba(192,200,212,.45)">宝塔或 SFTP 上传，解压至网站根目录</div></div>
+        <div style="background:#080d13;padding:2rem"><div style="font-size:.75rem;font-weight:700;letter-spacing:.12em;color:#d4a017;margin-bottom:.6rem">STEP 02</div><div style="font-size:.95rem;font-weight:700;color:#e8ecf0;margin-bottom:.4rem">运行安装向导</div><div style="font-size:.82rem;color:rgba(192,200,212,.45)">访问 /install/ 按指引完成数据库与管理员初始化</div></div>
+        <div style="background:#080d13;padding:2rem"><div style="font-size:.75rem;font-weight:700;letter-spacing:.12em;color:#d4a017;margin-bottom:.6rem">STEP 03</div><div style="font-size:.95rem;font-weight:700;color:#e8ecf0;margin-bottom:.4rem">启动 WebSocket</div><div style="font-size:.82rem;color:rgba(192,200,212,.45)">Supervisor 守护 WS 进程，Nginx 配置 /ws 反向代理</div></div>
+      </div>
+      <div style="margin-top:2rem"><a href="/install/" class="ent-btn ent-btn-primary" style="padding:.7rem 2.2rem">开始安装向导 →</a></div>
+    </div>
+  </div>
+  <div class="ent-cta">
+    <div class="ent-cta-inner">
+      <div>
+        <div class="ent-cta-title">立即部署 <span class="ent-gold">${n}</span></div>
+        <div class="ent-cta-sub">完全免费开源，MIT 协议，无使用限制，立即拥有私有通讯系统</div>
+      </div>
+      <div style="display:flex;gap:.875rem;flex-shrink:0;flex-wrap:wrap">
+        <a href="/auth.html?tab=register" class="ent-btn ent-btn-primary">注册体验</a>
+        <a href="/install/" class="ent-btn ent-btn-ghost">开始部署</a>
+      </div>
+    </div>
+  </div>
+  <footer style="border-top:1px solid rgba(192,200,212,.06)">
+    <div class="ent-footer">
+      <span>© 2024–2026 ${n} · PHP + WebSocket · MIT License</span>
+      <span><a href="/auth.html">登录</a> · <a href="/auth.html?tab=register">注册</a> · <a href="/admin.html">管理后台</a></span>
+    </div>
+  </footer>
+</div>`;
+    },
+    init() {}
+  }
+};
+
+/* ════════════════════════════════════════════════════════
+   启动：拉取配置 → 渲染主题
+   ════════════════════════════════════════════════════════ */
+(async function() {
+  let cfg = {};
+  try {
+    const res = await api('settings/public', {}, 'GET');
+    if (res.code === 0 && res.data) cfg = res.data;
+  } catch(e) {}
+
+  const themeName = cfg.index_theme || 'default';
+  const theme = HOME_THEMES[themeName] || HOME_THEMES.default;
+
+  const root = document.getElementById('home-root');
+  root.innerHTML = theme.render(cfg);
+
+  const loader = document.getElementById('home-init-loader');
+  if (loader) loader.remove();
+  root.style.opacity = '1';
+
+  theme.init();
+
+  // 主题切换按钮
+  document.querySelectorAll('.js-theme-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    });
   });
+
+  // 恢复保存的 data-theme
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
 </script>
 </body>
 </html>

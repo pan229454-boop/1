@@ -194,6 +194,9 @@
       <div class="admin-nav-item" onclick="showPage('settings-skin')">
         <span class="nav-icon">🎨</span><span>界面皮肤</span>
       </div>
+      <div class="admin-nav-item" onclick="showPage('index-theme')">
+        <span class="nav-icon">🏠</span><span>主页风格</span>
+      </div>
     </div>
 
     <div style="flex:1"></div>
@@ -283,6 +286,7 @@ async function showPage(name) {
     case 'settings-theme':  await renderSettings('theme'); break;
     case 'settings-recall': await renderSettings('recall'); break;
     case 'settings-skin':   await renderSkinPage(); break;
+    case 'index-theme':     await renderIndexThemePage(); break;
   }
 }
 
@@ -672,6 +676,113 @@ async function saveSkin() {
   if (res.code === 0) {
     settings.ui_skin = selectedSkin;
     toast(`皮肤「${UI_THEMES[selectedSkin]?.label}」已保存，全站生效`, 'success');
+  } else {
+    toast(res.msg ?? '保存失败', 'error');
+  }
+}
+
+// ================================================================
+//  主页风格选择
+// ================================================================
+const INDEX_THEMES = {
+  default: {
+    label: '默认', desc: '简洁现代，渐变主色，明暗双模',
+    preview: 'linear-gradient(135deg,#f0f4ff 0%,#e8eeff 100%)',
+    badge: '☀️', accent: '#4f73f8'
+  },
+  tech: {
+    label: '科技感', desc: '深色背景，网格线条，霓虹蓝绿',
+    preview: 'linear-gradient(135deg,#020b18 0%,#041a2e 100%)',
+    badge: '⚡', accent: '#00f6ff'
+  },
+  minimal: {
+    label: '极简主义', desc: '纯白底色，大号字重，高对比度',
+    preview: 'linear-gradient(135deg,#ffffff 0%,#f5f5f5 100%)',
+    badge: '◻️', accent: '#111111'
+  },
+  aurora: {
+    label: '极光', desc: '暗夜底色，流动彩色极光效果',
+    preview: 'linear-gradient(135deg,#050008 0%,#1a0535 40%,#062030 100%)',
+    badge: '🌌', accent: '#a855f7'
+  },
+  enterprise: {
+    label: '商务专业', desc: '深蓝底色，金色点缀，专业严谨',
+    preview: 'linear-gradient(135deg,#0c1117 0%,#111820 100%)',
+    badge: '💼', accent: '#d4a017'
+  }
+};
+
+let selectedIndexTheme = 'default';
+
+async function renderIndexThemePage() {
+  if (!Object.keys(settings).length) {
+    const res = await api('admin/settings/get', {}, 'GET');
+    if (res.code === 0 && res.data) settings = res.data;
+  }
+  selectedIndexTheme = settings.index_theme || 'default';
+  _renderIndexThemeCards();
+}
+
+function _renderIndexThemeCards() {
+  const cards = Object.entries(INDEX_THEMES).map(([key, t]) => {
+    const isActive = key === selectedIndexTheme;
+    return `<div data-itheme="${key}" onclick="selectIndexTheme('${key}')" style="
+        border-radius:12px;overflow:hidden;cursor:pointer;
+        border:2.5px solid ${isActive ? 'var(--primary)' : 'var(--border)'};
+        transition:.2s;background:var(--bg-card);box-shadow:var(--shadow-sm)">
+      <div style="height:88px;background:${t.preview};position:relative;display:flex;align-items:center;justify-content:center;font-size:2rem">
+        ${t.badge}
+        ${isActive ? '<span data-ibadge="1" style="position:absolute;top:5px;right:6px;background:var(--primary);color:#fff;font-size:.68rem;padding:.2rem .45rem;border-radius:999px;font-weight:600">✓ 当前</span>' : ''}
+        <span style="position:absolute;bottom:5px;left:8px;width:12px;height:12px;border-radius:50%;background:${t.accent};display:inline-block"></span>
+      </div>
+      <div style="padding:.55rem .8rem">
+        <div style="font-size:.875rem;font-weight:600;color:var(--text-primary)">${t.label}</div>
+        <div style="font-size:.73rem;color:var(--text-muted);margin-top:.2rem">${t.desc}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('adminMain').innerHTML = `
+    <div class="page-title">主页风格</div>
+    <p style="color:var(--text-secondary);font-size:.875rem;margin-bottom:1.25rem">
+      为访客首页选择宣传风格，保存后访客刷新即可看到新主页。
+    </p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:1rem;margin-bottom:1.5rem" id="indexThemeGrid">
+      ${cards}
+    </div>
+    <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveIndexTheme()">💾 应用风格</button>
+      <a href="/" target="_blank" class="btn btn-secondary btn-sm">🔗 预览主页</a>
+      <span id="indexThemeNote" style="font-size:.82rem;color:var(--text-muted)">点击卡片即可选择</span>
+    </div>`;
+}
+
+function selectIndexTheme(name) {
+  selectedIndexTheme = name;
+  document.querySelectorAll('#indexThemeGrid > div[data-itheme]').forEach(card => {
+    const isActive = card.dataset.itheme === name;
+    card.style.borderColor = isActive ? 'var(--primary)' : 'var(--border)';
+    const prev = card.querySelector('div:first-child');
+    const badge = prev.querySelector('span[data-ibadge]');
+    if (isActive && !badge) {
+      const b = document.createElement('span');
+      b.setAttribute('data-ibadge', '1');
+      b.style.cssText = 'position:absolute;top:5px;right:6px;background:var(--primary);color:#fff;font-size:.68rem;padding:.2rem .45rem;border-radius:999px;font-weight:600';
+      b.textContent = '✓ 当前';
+      prev.appendChild(b);
+    } else if (!isActive && badge) {
+      badge.remove();
+    }
+  });
+  const note = document.getElementById('indexThemeNote');
+  if (note) note.textContent = `已选：${INDEX_THEMES[name]?.label} — 点击"应用风格"保存`;
+}
+
+async function saveIndexTheme() {
+  const res = await api('admin/settings/save', { settings: { index_theme: selectedIndexTheme } });
+  if (res.code === 0) {
+    settings.index_theme = selectedIndexTheme;
+    toast(`主页风格「${INDEX_THEMES[selectedIndexTheme]?.label}」已保存`, 'success');
   } else {
     toast(res.msg ?? '保存失败', 'error');
   }
