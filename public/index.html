@@ -6,6 +6,13 @@
   <title>极聊 - 轻量级即时通讯</title>
   <meta name="description" content="极聊是一款基于 PHP + WebSocket 的即时通讯系统，支持群聊、私聊、文件传输、管理后台等完整功能。" />
   <link rel="stylesheet" href="/assets/css/app.css" />
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f73f8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Boop">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <style>
     #home-init-loader {
       position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
@@ -725,6 +732,53 @@ const HOME_THEMES = {
   // 恢复保存的 data-theme
   const saved = localStorage.getItem('theme');
   if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+<script>if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));}</script>
+<script>
+// ── PWA 安装横幅 ──────────────────────────────────────
+(function(){
+  let _p = null;
+  const DISMISSED_KEY = 'pwa_banner_dismissed';
+  function showBanner() {
+    if (sessionStorage.getItem(DISMISSED_KEY) || document.getElementById('pwa-banner')) return;
+    const bar = document.createElement('div');
+    bar.id = 'pwa-banner';
+    bar.style.cssText = [
+      'position:fixed','bottom:0','left:0','right:0','z-index:9999',
+      'background:linear-gradient(90deg,#4f73f8,#7c3aed)',
+      'color:#fff','display:flex','align-items:center','justify-content:space-between',
+      'padding:.75rem 1.25rem','gap:.75rem','box-shadow:0 -4px 20px rgba(0,0,0,.25)',
+      'font-family:system-ui,sans-serif','font-size:.9rem'
+    ].join(';');
+    bar.innerHTML = `
+      <span style="display:flex;align-items:center;gap:.6rem">
+        <span style="font-size:1.4rem">📲</span>
+        <span><strong>安装 Boop APP</strong><br><small style="opacity:.8">添加到桌面，随时快速打开</small></span>
+      </span>
+      <span style="display:flex;gap:.5rem;flex-shrink:0">
+        <button id="pwa-banner-install" style="background:#fff;color:#4f73f8;border:none;border-radius:8px;padding:.45rem 1rem;font-weight:700;cursor:pointer;font-size:.875rem">立即安装</button>
+        <button id="pwa-banner-close" style="background:transparent;border:1.5px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:.45rem .75rem;cursor:pointer;font-size:.875rem">稍后</button>
+      </span>`;
+    document.body.appendChild(bar);
+    document.getElementById('pwa-banner-install').onclick = () => {
+      if (_p) { _p.prompt(); _p.userChoice.then(() => { _p = null; bar.remove(); }); }
+      else { window.location.href = '/app.html'; }
+    };
+    document.getElementById('pwa-banner-close').onclick = () => {
+      sessionStorage.setItem(DISMISSED_KEY, '1');
+      bar.style.transition = 'transform .3s'; bar.style.transform = 'translateY(100%)';
+      setTimeout(() => bar.remove(), 320);
+    };
+  }
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); _p = e;
+    setTimeout(showBanner, 2500);
+  });
+  window.addEventListener('appinstalled', () => { _p = null; });
+  // iOS Safari：无 beforeinstallprompt，延迟展示提示
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone;
+  if (isIos) setTimeout(showBanner, 3000);
 })();
 </script>
 </body>

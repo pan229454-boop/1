@@ -7,6 +7,13 @@
   <!-- session-id 由服务端渲染注入 -->
   <meta name="session-id" content="" id="meta-session" />
   <link rel="stylesheet" href="/assets/css/app.css" />
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f73f8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Boop">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
 </head>
 <body>
 
@@ -34,6 +41,8 @@
 
     <span class="nav-rail-spacer"></span>
 
+    <!-- 安装APP -->
+    <button class="nav-rail-btn" id="pwa-install-btn" title="安装APP到桌面" style="display:none" onclick="triggerPwaInstall()">📲</button>
     <!-- 主题切换 -->
     <button class="nav-rail-btn js-theme-toggle" title="切换主题">🌙</button>
     <!-- 退出登录 -->
@@ -1330,6 +1339,36 @@ function makeLongPressHandler(callback) {
     document.addEventListener('touchend',  () => { if (timer) clearTimeout(timer); }, { once: true });
     document.addEventListener('touchmove', () => { if (timer) clearTimeout(timer); }, { once: true });
   };
+}
+</script>
+<script>if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));}</script>
+<script>
+// ── PWA 安装提示 ──────────────────────────────────────
+let _pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _pwaPrompt = e;
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = '';
+});
+window.addEventListener('appinstalled', () => {
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'none';
+  _pwaPrompt = null;
+  if (typeof toast === 'function') toast('APP 已安装到桌面 🎉', 'success');
+});
+function triggerPwaInstall() {
+  if (!_pwaPrompt) {
+    if (typeof toast === 'function') toast('请用 Chrome/Edge 浏览器访问以安装', 'info');
+    return;
+  }
+  _pwaPrompt.prompt();
+  _pwaPrompt.userChoice.then(r => {
+    if (r.outcome === 'accepted' && typeof toast === 'function') toast('正在安装…', 'info');
+    _pwaPrompt = null;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'none';
+  });
 }
 </script>
 </body>
