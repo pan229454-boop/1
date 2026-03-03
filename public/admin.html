@@ -7,13 +7,13 @@
   <link rel="stylesheet" href="/assets/css/app.css" />
   <style>
     /* ── 后台私有样式 ── */
-    body { background: var(--surface-2); }
+    body { background: var(--bg-secondary); }
     .admin-wrap { display: flex; height: 100vh; overflow: hidden; }
 
     /* 侧边栏 */
     .admin-sidebar {
       width: 240px; flex-shrink: 0;
-      background: var(--surface-1);
+      background: var(--bg-card);
       border-right: 1px solid var(--border);
       display: flex; flex-direction: column;
       overflow-y: auto;
@@ -54,22 +54,22 @@
     }
     .admin-nav-item {
       display: flex; align-items: center; gap: .625rem;
-      padding: .5rem 1.25rem;
+      padding: .55rem 1.25rem;
       cursor: pointer;
       font-size: .875rem;
-      color: var(--text-secondary);
+      color: var(--text-primary);
       transition: background .15s, color .15s;
       border-radius: 0;
     }
-    .admin-nav-item:hover { background: var(--surface-2); color: var(--text-primary); }
-    .admin-nav-item.active { background: rgba(79,115,248,.1); color: var(--primary); font-weight: 600; }
+    .admin-nav-item:hover { background: var(--bg-secondary); color: var(--primary); }
+    .admin-nav-item.active { background: rgba(79,115,248,.12); color: var(--primary); font-weight: 600; border-left: 3px solid var(--primary); padding-left: calc(1.25rem - 3px); }
     .admin-nav-item .nav-icon { font-size: 1.1em; flex-shrink: 0; }
 
     /* 主内容区 */
     .admin-main {
       flex: 1; min-width: 0;
       display: flex; flex-direction: column; overflow: hidden;
-      margin-left: 240px;   /* 桌面端留出侧边栏宽度 */
+      margin-left: 240px;
     }
     .admin-main-content {
       flex: 1; overflow-y: auto;
@@ -79,8 +79,8 @@
     /* 统计卡片 */
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
     .stat-card {
-      background: var(--surface-1); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 1.25rem 1.5rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 1.25rem 1.5rem;
     }
     .stat-card .stat-val { font-size: 1.75rem; font-weight: 800; color: var(--primary); }
     .stat-card .stat-label { font-size: .8rem; color: var(--text-muted); margin-top: .25rem; }
@@ -88,8 +88,8 @@
     /* 数据表格 */
     .data-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
     .data-table th, .data-table td { text-align: left; padding: .625rem .875rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    .data-table th { font-weight: 600; background: var(--surface-2); color: var(--text-secondary); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
-    .data-table tr:hover td { background: var(--surface-2); }
+    .data-table th { font-weight: 600; background: var(--bg-secondary); color: var(--text-secondary); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+    .data-table tr:hover td { background: var(--bg-secondary); }
     .data-table .actions { display: flex; gap: .375rem; }
 
     /* 状态徽章 */
@@ -99,8 +99,8 @@
     .status-badge.muted  { background: rgba(245,158,11,.12); color: #d97706; }
 
     /* 设置页 */
-    .settings-section { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
-    .settings-section h3 { font-size: .9rem; font-weight: 700; margin-bottom: 1rem; padding-bottom: .625rem; border-bottom: 1px solid var(--border); }
+    .settings-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .settings-section h3 { font-size: .9rem; font-weight: 700; margin-bottom: 1rem; padding-bottom: .625rem; border-bottom: 1px solid var(--border); color: var(--text-primary); }
 
     .page-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--text-primary); }
 
@@ -110,7 +110,7 @@
       align-items: center; gap: .75rem;
       padding: .875rem 1rem;
       border-bottom: 1px solid var(--border);
-      background: var(--surface-1);
+      background: var(--bg-card);
       position: sticky; top: 0; z-index: 10;
       flex-shrink: 0;
     }
@@ -312,7 +312,7 @@ async function renderDashboard() {
         <div class="stat-label">累计消息</div>
       </div>
     </div>
-    <div style="margin-top:2rem;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem">
+    <div style="margin-top:2rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1.5rem">
       <h3 style="font-size:.9rem;font-weight:700;margin-bottom:.75rem">快速操作</h3>
       <div style="display:flex;gap:.75rem;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="showPage('users')">👤 管理用户</button>
@@ -346,7 +346,7 @@ async function renderUsers(page = 1, search = '') {
       <input class="form-input" id="userSearch" placeholder="搜索昵称/UID…" style="max-width:240px" value="${escHtml(search)}" onkeydown="if(event.key==='Enter')renderUsers(1,this.value.trim())" />
       <button class="btn btn-primary btn-sm" onclick="renderUsers(1,document.getElementById('userSearch').value.trim())">搜索</button>
     </div>
-    <div style="overflow-x:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius)">
+    <div style="overflow-x:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md)">
       <table class="data-table">
         <thead><tr>
           <th>UID</th><th>昵称</th><th>用户名</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th>
@@ -404,7 +404,7 @@ async function renderGroups(search = '') {
       <input class="form-input" id="groupSearch" placeholder="搜索群名称/群号…" style="max-width:240px" value="${escHtml(search)}" onkeydown="if(event.key==='Enter')renderGroups(this.value.trim())" />
       <button class="btn btn-primary btn-sm" onclick="renderGroups(document.getElementById('groupSearch').value.trim())">搜索</button>
     </div>
-    <div style="overflow-x:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius)">
+    <div style="overflow-x:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md)">
       <table class="data-table">
         <thead><tr>
           <th>群号</th><th>群名</th><th>群主 UID</th><th>成员数</th><th>状态</th><th>创建时间</th><th>操作</th>
