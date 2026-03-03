@@ -1,6 +1,6 @@
 <?php
 /**
- * 极聊（商用版）安装向导
+ * 极聊安装向导
  * 文件：public/install.php
  * ─────────────────────────────────────────────────────────────────
  * 安全机制：安装完成后会在根目录写入 install.lock 文件，
@@ -150,7 +150,7 @@ function createAdmin(array $post): array {
 function writeEnv(array $post): array {
     $p = $post;
     $lines = [
-        "# 极聊（商用版）环境配置",
+        "# 极聊环境配置",
         "# 由安装向导自动生成",
         "",
         "APP_NAME=\"{$p['app_name']}\"",
@@ -330,7 +330,7 @@ function finishInstall(): array {
       <h3 style="font-weight:700;margin-bottom:1rem">系统配置</h3>
       <div class="form-group">
         <label class="form-label">站点名称</label>
-        <input class="form-input" id="app_name" value="极聊（商用版）" />
+        <input class="form-input" id="app_name" value="极聊" />
       </div>
       <div class="form-group">
         <label class="form-label">网站 URL（含协议和域名，结尾不含斜杠）</label>

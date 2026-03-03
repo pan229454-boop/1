@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>登录 / 注册 - 极聊（商用版）</title>
+  <title>登录 / 注册 - 极聊</title>
   <link rel="stylesheet" href="/assets/css/app.css" />
   <style>
     /* 背景图（可由后台设置覆盖 --bg-auth-img 变量） */
@@ -25,7 +25,7 @@
     <!-- Logo -->
     <div class="auth-logo">
       <div><div class="auth-logo-icon" id="appLogoChar">极</div></div>
-      <h1 id="appName">极聊（商用版）</h1>
+      <h1 id="appName">极聊</h1>
       <p id="appSlogan">快速、安全、轻量的即时通讯</p>
     </div>
 
@@ -38,8 +38,8 @@
     <!-- ── 登录表单 ───────────────────────────────────────────── -->
     <form id="form-login" class="auth-form" onsubmit="doLogin(event)">
       <div class="form-group">
-        <label class="form-label" for="l-username">用户名</label>
-        <input class="form-input" id="l-username" type="text" placeholder="请输入用户名" autocomplete="username" required />
+        <label class="form-label" for="l-username">账号</label>
+        <input class="form-input" id="l-username" type="text" placeholder="用户名 / 邮箱 / 手机号" autocomplete="username" required />
       </div>
       <div class="form-group" style="position:relative">
         <label class="form-label" for="l-password">密码</label>
@@ -137,8 +137,8 @@ let appConfig    = {};
     if (appConfig.ui_skin) applyUITheme(appConfig.ui_skin);
     // 应用名/口号
     if (appConfig.app_name) {
-      document.title = `登录 / 注册 - ${appConfig.app_name}`;
-      document.getElementById('appName').textContent = appConfig.app_name;
+      document.title = `登录 / 注册 - ${appConfig.app_name.replace(/[（(]?商用版[）)]?/g,'').trim()}`;
+      document.getElementById('appName').textContent = appConfig.app_name.replace(/[（(]?商用版[）)]?/g,'').trim();
     }
     // 登录页背景
     if (appConfig.login_bg) {
@@ -151,16 +151,18 @@ let appConfig    = {};
       document.head.appendChild(style);
     }
     // 邮箱/手机字段显示
-    if (appConfig.register_email_verify === '1') {
+    if (appConfig.register_require_email === '1') {
       document.getElementById('field-email').style.display = '';
+      document.getElementById('r-email').required = true;
     }
-    if (appConfig.register_phone_verify === '1') {
+    if (appConfig.register_require_phone === '1') {
       document.getElementById('field-phone').style.display = '';
+      document.getElementById('r-phone').required = true;
     }
   }
 
-  // 初始化滑块验证码
-  const captchaEnable = appConfig.captcha_slider_enable !== '0';
+  // 初始化滑块验证码（后台开启 captcha_enabled=1 时才显示）
+  const captchaEnable = appConfig.captcha_enabled === '1';
   if (captchaEnable) {
     loginSlider = new SliderCaptcha(document.getElementById('login-slider'), () => { loginVerified = true; });
     regSlider   = new SliderCaptcha(document.getElementById('reg-slider'),   () => { regVerified   = true; });

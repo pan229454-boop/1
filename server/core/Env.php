@@ -1,6 +1,6 @@
 <?php
 /**
- * 极聊（商用版）- 环境变量管理类
+ * 极聊 - 环境变量管理类
  * 
  * 轻量版 .env 解析器，不依赖 Composer（安装向导阶段可用）
  * 
@@ -79,7 +79,7 @@ class Env
      */
     public static function write(string $path, array $data): bool
     {
-        $lines = ["# 极聊（商用版）自动生成配置文件 - " . date('Y-m-d H:i:s'), ""];
+        $lines = ["# 极聊自动生成配置文件 - " . date('Y-m-d H:i:s'), ""];
         foreach ($data as $k => $v) {
             // 含空格或特殊字符时加引号
             if (preg_match('/\s/', $v)) {

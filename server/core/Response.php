@@ -1,6 +1,6 @@
 <?php
 /**
- * 极聊（商用版）- HTTP 响应辅助类
+ * 极聊 - HTTP 响应辅助类
  * 
  * 统一 API 响应格式：{ code, msg, data, ts }
  * 

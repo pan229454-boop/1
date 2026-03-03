@@ -1,6 +1,6 @@
 {
     "name": "jiliao/jiliao",
-    "description": "极聊（商用版）- 轻量级商用即时通讯系统",
+    "description": "极聊 - 轻量级即时通讯系统",
     "type": "project",
     "license": "proprietary",
     "require": {

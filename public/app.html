@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>极聊（商用版）</title>
+  <title>极聊</title>
   <!-- session-id 由服务端渲染注入 -->
   <meta name="session-id" content="" id="meta-session" />
   <link rel="stylesheet" href="/assets/css/app.css" />
@@ -210,6 +210,13 @@ let appConfig = {};      // settings/public 公开配置缓存
       el.id = 'app-custom-css';
       el.textContent = r.data.custom_css;
       if (!el.parentNode) document.head.appendChild(el);
+    }
+    // 全局搜索按钮显隐
+    const searchBtn = document.getElementById('nav-search');
+    if (searchBtn) searchBtn.style.display = r.data.search_enabled === '1' ? '' : 'none';
+    // 应用名字
+    if (r.data.app_name) {
+      document.title = r.data.app_name.replace(/[（(]?商用版[）)]?/g,'').trim();
     }
   });
 
@@ -1074,13 +1081,75 @@ function addFriendModal() {
 // ================================================================
 //  全局搜索
 // ================================================================
-function openGlobalSearch() {
-  toast('全局搜索功能即将上线', 'info');
+async function openGlobalSearch() {
+  showModal({
+    title: '🔍 全局搜索',
+    body: `<div style="margin-bottom:.75rem">
+      <input class="form-input" id="gsInput" placeholder="搜索用户昵称、用户名、群组名称…" autofocus autocomplete="off" />
+    </div>
+    <div id="gsResults" style="max-height:55vh;overflow-y:auto"></div>`,
+    confirmText: '搜索',
+    cancelText: '关闭',
+    onConfirm: async () => {
+      const q = document.getElementById('gsInput')?.value?.trim();
+      if (!q) { toast('请输入关键词', 'warning'); return true; }
+      const res = await api('search/global', { q }, 'GET');
+      const box = document.getElementById('gsResults');
+      if (!box) return true;
+      if (res.code !== 0) { box.innerHTML = `<p style="color:#ef4444;text-align:center;padding:1rem">${escHtml(res.msg || '搜索失败')}</p>`; return true; }
+      const { users=[], groups=[] } = res.data;
+      if (!users.length && !groups.length) { box.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:1rem">未找到匹配结果</p>'; return true; }
+      let html = '';
+      if (users.length) {
+        html += `<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);padding:.3rem 0">👤 用户</div>`;
+        html += users.map(u => `<div style="display:flex;align-items:center;gap:.625rem;padding:.45rem .25rem;cursor:pointer;border-radius:8px" onclick="clickAvatar(${u.uid});document.querySelector('.modal-backdrop')?.remove()">
+          ${u.avatar ? `<img src="${escHtml(u.avatar)}" class="avatar avatar-sm">` : avatarHtml(u.nickname,'avatar-sm')}
+          <div><div style="font-size:.875rem;font-weight:600">${escHtml(u.nickname)}</div><div style="font-size:.75rem;color:var(--text-muted)">@${escHtml(u.username)}</div></div>
+        </div>`).join('');
+      }
+      if (groups.length) {
+        html += `<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);padding:.5rem 0 .3rem">👥 群组</div>`;
+        html += groups.map(g => `<div style="display:flex;align-items:center;gap:.625rem;padding:.45rem .25rem;cursor:pointer;border-radius:8px" onclick="joinGroupById('${escHtml(g.gid)}');document.querySelector('.modal-backdrop')?.remove()">
+          ${g.avatar ? `<img src="${escHtml(g.avatar)}" class="avatar avatar-sm">` : avatarHtml(g.name,'avatar-sm')}
+          <div><div style="font-size:.875rem;font-weight:600">${escHtml(g.name)}</div><div style="font-size:.75rem;color:var(--text-muted)">${g.member_count ?? 0} 人</div></div>
+        </div>`).join('');
+      }
+      box.innerHTML = html;
+      return true; // 保持弹窗
+    }
+  });
+  // 回车快捷搜索
+  setTimeout(() => {
+    const inp = document.getElementById('gsInput');
+    if (!inp) return;
+    inp.addEventListener('keydown', async e => {
+      if (e.key === 'Enter') document.querySelector('.modal-backdrop .btn-primary')?.click();
+    });
+  }, 100);
 }
 
 // ================================================================
 //  右侧信息面板
 // ================================================================
+
+// 从全局搜索点击群组：加入或直接打开
+async function joinGroupById(gid) {
+  const res = await api('group/join', { gid });
+  if (res.code === 0) {
+    toast('已加入群组', 'success');
+    await loadSessions();
+    const target = sessions.find(s => s.type === 'group' && s.id === gid);
+    if (target) openSession(target);
+  } else if (res.code === 409) {
+    // 已是成员：直接打开
+    const target = sessions.find(s => s.type === 'group' && s.id === gid);
+    if (target) openSession(target);
+    else toast(res.msg || '加入失败', 'error');
+  } else {
+    toast(res.msg || '加入失败', 'error');
+  }
+}
+
 function toggleInfoPanel() {
   // 在小屏（1100px 以下）时，CSS 隐藏了侧边信息栏，改用 Modal 弹出群成员
   if (window.innerWidth <= 1100) {

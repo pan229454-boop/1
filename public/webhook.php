@@ -1,6 +1,6 @@
 <?php
 /**
- * 极聊（商用版）- GitHub Webhook 自动部署入口
+ * 极聊 - GitHub Webhook 自动部署入口
  *
  * 配置方法：
  *   1. 在 GitHub 仓库 Settings → Webhooks → Add webhook

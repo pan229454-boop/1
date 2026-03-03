@@ -1,6 +1,6 @@
 <?php
 /**
- * 极聊（商用版）- 用户认证类
+ * 极聊 - 用户认证类
  *
  * 负责：注册、登录、会话校验、注销、密码哈希、登录锁定
  *
@@ -151,10 +151,10 @@ class Auth
             return ['code' => 429, 'msg' => '登录失败次数过多，请30分钟后重试'];
         }
 
-        // ── 查询用户 ─────────────────────────────────────────
+        // ── 查询用户（支持用户名 / 邮箱 / 手机号）────────────
         $user = $this->db->first(
-            'SELECT id,uid,username,nickname,avatar,role,status,freeze_until,password FROM users WHERE username=?',
-            [$username]
+            'SELECT id,uid,username,nickname,avatar,role,status,freeze_until,password FROM users WHERE username=? OR (email!=\'\' AND email=?) OR (phone!=\'\' AND phone=?) LIMIT 1',
+            [$username, $username, $username]
         );
 
         if (!$user || !password_verify($password, $user['password'])) {

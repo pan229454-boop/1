@@ -1,5 +1,5 @@
 -- ============================================================
--- 极聊（商用版）数据库结构
+-- 极聊数据库结构
 -- 支持 MySQL 5.7+ / MariaDB 10.3+
 -- 字符集：utf8mb4（支持 emoji）
 -- ============================================================
@@ -246,7 +246,7 @@ INSERT IGNORE INTO `settings` (`key`,`val`,`group`) VALUES
 ('upload_max_file','50','upload'),
 ('upload_forbidden_ext','exe,sh,bat,cmd,ps1,php,phtml,asp,aspx,jsp','upload'),
 ('mail_enable','0','mail'),
-('app_name','极聊（商用版）','general'),
+('app_name','极聊','general'),
 ('app_logo','','general'),
 ('login_bg','','theme'),
 ('register_bg','','theme'),

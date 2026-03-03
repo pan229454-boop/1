@@ -1,6 +1,6 @@
 <?php
 /**
- * 极聊（商用版）- API 总路由入口
+ * 极聊 - API 总路由入口
  *
  * URL 格式：/api.php?action=xxx  或 Nginx 重写后 /api/xxx
  * 所有接口统一 JSON 输出，Content-Type: application/json; charset=UTF-8
@@ -514,16 +514,35 @@ switch ($action) {
         Response::json(['code' => 0, 'msg' => '设置已保存']);
         break;
 
+    case 'search/global':
+        // 全局搜索：用户、群组
+        $auth->requireLogin();
+        $q = trim($data['q'] ?? '');
+        if (strlen($q) < 1) { Response::json(['code' => 400, 'msg' => '请输入搜索关键词']); break; }
+        $searchEnabled = $db->single("SELECT val FROM settings WHERE `key`='search_enabled'") ?? '0';
+        if ($searchEnabled !== '1') { Response::json(['code' => 403, 'msg' => '全局搜索功能未开启']); break; }
+        $like = '%' . addslashes($q) . '%';
+        $users  = $db->query(
+            'SELECT uid, username, nickname, avatar FROM users WHERE (nickname LIKE ? OR username LIKE ?) AND status=1 LIMIT 20',
+            [$like, $like]
+        );
+        $groups = $db->query(
+            'SELECT gid, name, avatar, member_count FROM `groups` WHERE name LIKE ? LIMIT 20',
+            [$like]
+        );
+        Response::json(['code' => 0, 'data' => ['users' => $users ?? [], 'groups' => $groups ?? []]]);
+        break;
+
     case 'settings/public':
         // 公开设置，无需登录验证
         $pubKeys = [
             'app_name','app_slogan','index_bg','auth_bg','login_bg',
             'ui_skin','primary_color','custom_css','custom_head_html',
-            'captcha_enabled','captcha_slider_enable',
+            'captcha_enabled',
             'register_require_email','register_require_phone',
             'email_verify_required','phone_verify_required',
-            'register_email_verify','register_phone_verify',
             'allow_cancel_account','cancel_recover_days','cancel_freeze_days',
+            'search_enabled','sms_enabled',
         ];
         $ph  = implode(',', array_fill(0, count($pubKeys), '?'));
         $rows = $db->query("SELECT `key`,val FROM settings WHERE `key` IN ($ph)", $pubKeys);

@@ -29,13 +29,8 @@
       color: var(--primary);
       border-bottom: 1px solid var(--border);
     }
-    /* 侧边栏遮罩层 */
-    .admin-sidebar-overlay {
-      display: none;
-      position: fixed; inset: 0; z-index: 199;
-      background: rgba(0,0,0,.45);
-    }
-    .admin-sidebar-overlay.open { display: block; }
+    /* 侧边栏遮罩层已移除，改为无遮罩抽屉式 */
+    /* .admin-sidebar-overlay { ... } */
     .admin-nav-group { padding: .625rem 0; }
     .admin-nav-label {
       padding: .25rem 1.25rem;
@@ -133,9 +128,6 @@
 
 <div class="admin-wrap" id="adminRoot" style="visibility:hidden">
 
-  <!-- 移动端蒙层遮罩 -->
-  <div class="admin-sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
-
   <!-- 侧边栏 -->
   <aside class="admin-sidebar" id="adminSidebar">
     <div class="admin-brand">极聊后台</div>
@@ -164,6 +156,9 @@
       </div>
       <div class="admin-nav-item" onclick="showPage('settings-smtp')">
         <span class="nav-icon">📧</span><span>邮件配置</span>
+      </div>
+      <div class="admin-nav-item" onclick="showPage('settings-sms')">
+        <span class="nav-icon">📱</span><span>短信配置</span>
       </div>
       <div class="admin-nav-item" onclick="showPage('settings-security')">
         <span class="nav-icon">🔒</span><span>安全设置</span>
@@ -222,7 +217,6 @@ let currentPage = 'dashboard';
 // ================================================================
 function toggleSidebar(open) {
   document.getElementById('adminSidebar').classList.toggle('open', open);
-  document.getElementById('sidebarOverlay').classList.toggle('open', open);
 }
 
 // ================================================================
@@ -257,6 +251,7 @@ async function showPage(name) {
     case 'groups':          await renderGroups(); break;
     case 'settings-basic':  await renderSettings('basic'); break;
     case 'settings-smtp':   await renderSettings('smtp'); break;
+    case 'settings-sms':    await renderSettings('sms'); break;
     case 'settings-security': await renderSettings('security'); break;
     case 'settings-theme':  await renderSettings('theme'); break;
     case 'settings-recall': await renderSettings('recall'); break;
@@ -419,11 +414,12 @@ const SETTING_PAGES = {
   basic: {
     title: '基础设置',
     fields: [
-      { key: 'app_name',       label: '站点名称',       type: 'text', placeholder: '极聊（商用版）' },
-      { key: 'app_slogan',     label: '站点口号',       type: 'text' },
+      { key: 'app_name',       label: '站点名称',       type: 'text', placeholder: '极聊' },
+      { key: 'app_slogan',     label: '站点号',       type: 'text' },
       { key: 'index_bg',       label: '首页背景图 URL', type: 'text' },
       { key: 'auth_bg',        label: '登录页背景图 URL', type: 'text' },
       { key: 'register_open',  label: '开放注册',       type: 'toggle' },
+      { key: 'search_enabled', label: '开启全局搜索',   type: 'toggle' },
     ]
   },
   smtp: {
@@ -439,6 +435,18 @@ const SETTING_PAGES = {
     extra: `<div style="margin-top:1rem">
       <button class="btn btn-secondary btn-sm" onclick="testSmtp()">📧 发送测试邮件</button>
     </div>`
+  },
+  sms: {
+    title: '短信（SMS）配置',
+    fields: [
+      { key: 'sms_provider',  label: '服务商',          type: 'text', placeholder: 'aliyun / tencent / huawei' },
+      { key: 'sms_appid',     label: 'AppID / AccessKeyId', type: 'text' },
+      { key: 'sms_appkey',    label: 'AppKey / SecretKey',  type: 'password' },
+      { key: 'sms_sign',      label: '短信签名名',     type: 'text', placeholder: '极聊' },
+      { key: 'sms_tpl_login', label: '登录验证码模板号', type: 'text' },
+      { key: 'sms_tpl_reg',   label: '注册验证码模板号', type: 'text' },
+      { key: 'sms_enabled',   label: '开启短信功能',   type: 'toggle' },
+    ]
   },
   security: {
     title: '安全设置',
